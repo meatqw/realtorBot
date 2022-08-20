@@ -1,0 +1,7 @@
+TOKEN = '5760331339:AAG4QLiTfFBO2z9SDtSoAOGVw3-ukMsiX9g'
+
+DB_HOST = ''
+DB_PORT = ''
+DB_LOGIN = ''
+DB_PASS = ''
+DB_NAME = ''
