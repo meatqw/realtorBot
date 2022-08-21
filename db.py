@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import os
@@ -14,12 +15,16 @@ app_root = os.path.dirname(os.path.abspath(__file__))
 
 # DB Model USER
 class Users(db.Model):
-    id = db.Column(db.String(200), primary_key=True)
+    id = db.Column(db.Integer(), primary_key=True)
     login = db.Column(db.String(200), nullable=True)
-    fname = db.Column(db.String(200), nullable=True)
-    lname = db.Column(db.String(200), nullable=True)
-    status = db.Column(db.Boolean(), nullable=True)
-    message_count = db.Column(db.Integer(), nullable=True, default=0)
+    fullname = db.Column(db.String(200), nullable=True)
+    phone = db.Column(db.String(200), nullable=True)
+    experience = db.Column(db.String(400), nullable=True)
+    job = db.Column(db.String(400), nullable=True)
+    region = db.Column(db.String(400), nullable=True)
+    key = db.Column(db.String(400), nullable=True)
+    region = db.Column(db.String(400), nullable=True)
+    datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
 
 if __name__ == '__main__':
@@ -27,4 +32,6 @@ if __name__ == '__main__':
     app.config['SESSION_TYPE'] = 'filesystem'
     app.config['JSON_AS_ASCII'] = False
     app.run(debug=True, port=5005)
+    
+    
     # Session(app)
