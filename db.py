@@ -26,6 +26,22 @@ class Users(db.Model):
     region = db.Column(db.String(400), nullable=True)
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
+# DB model Objects
+class Objects(db.Model):
+    id = db.Column(db.Integer(), primary_key=True)
+    user = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    region = db.Column(db.String(400), nullable=True)
+    city = db.Column(db.String(400), nullable=True)
+    address = db.Column(db.String(400), nullable=True)
+    street = db.Column(db.String(400), nullable=True)
+    stage = db.Column(db.Integer(), nullable=True)
+    description = db.Column(db.Text(), nullable=True)
+    price = db.Column(db.Integer(), nullable=True)
+    quadrature = db.Column(db.Float(), nullable=True)
+    property_type = db.Column(db.String(400), nullable=True)
+    ownership_type = db.Column(db.String(400), nullable=True)
+    phone = db.Column(db.String(200), nullable=True)
+    datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
 if __name__ == '__main__':
     db.create_all()

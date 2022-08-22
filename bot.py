@@ -1,4 +1,5 @@
 from aiogram.utils import executor
+from aiogram.dispatcher.filters import Text
 from aiogram import Bot, Dispatcher, types, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -10,6 +11,7 @@ import logging
 import aiogram.utils.markdown as md
 
 KEYS = ['key']
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,6 +29,20 @@ class userForm(StatesGroup):
     job = State()
     key = State()
     region = State()
+    
+# form objectsForm
+class objectsForm(StatesGroup):
+    region = State()
+    city = State()
+    address = State()
+    street = State()
+    stage = State()
+    description = State()
+    price = State()
+    quadrature = State()
+    property_type = State()
+    ownership_type = State()
+    phone = State()
 
 # REGISTRATION
 
@@ -38,8 +54,6 @@ async def process_start_command(message: types.Message):
     # start fullname state
     await userForm.fullname.set()
     await bot.send_message(message.chat.id, 'Регистрация\nВведите ФИО')
-
-    # save user data to base (registration)
 
 
 @dp.message_handler(state=userForm.fullname)
@@ -110,7 +124,7 @@ async def process_key(message: types.Message, state: FSMContext):
 @dp.message_handler(state=userForm.region)
 async def process_region(message: types.Message, state: FSMContext):
     """REGION STATE"""
-    
+
     async with state.proxy() as data:
         data['region'] = message.text
 
@@ -124,13 +138,67 @@ async def process_region(message: types.Message, state: FSMContext):
             job=data['job'],
             key=data['key'],
             region=data['region'])
-        
+
         db.session.add(user)
         db.session.commit()
 
     # finish state
     await state.finish()
 
+# CHECK AUTH USER
+
+# buttons
+buttons = ["Продажа", "Лента", "Мои объекты", "Уведомления"]
+
+@dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() != None 
+                    and message.text not in buttons)
+async def process_auth(message: types.Message):
+    """USER AUTH"""
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(*buttons)
+    await message.answer("Вы авторизованы", reply_markup=keyboard)
+
+
+@dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() == None 
+                    and message.text not in buttons)
+async def process_not_auth(message: types.Message):
+    """USER NOT AUTH"""
+    markup = types.ReplyKeyboardRemove()
+
+    await bot.send_message(
+        message.chat.id, "Вы не авторизованы",
+        reply_markup=markup,
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+# FUNCTIONS
+
+@dp.message_handler(Text(equals="Продажа"))
+async def function_sale(message: types.Message):
+    """FUNCTION SALE (SALE STATE)"""
+    
+    # start region state
+    await objectsForm.fullname.set()
+    await bot.send_message(message.chat.id, 'Добавить объект\nВведите Регион')
+
+
+@dp.message_handler(Text(equals="Лента"))
+async def function_feed(message: types.Message):
+    """FUNCTION FEED"""
+    await message.reply("Лента")
+
+
+@dp.message_handler(Text(equals="Мои объекты"))
+async def function_my_objects(message: types.Message):
+    """FUNCTION MY OBJECTS"""
+    await message.reply("Мои объекты")
+
+
+@dp.message_handler(Text(equals="Уведомления"))
+async def function_notifications(message: types.Message):
+    """FUNCTION NOTIFICATIONS"""
+    await message.reply("Уведомления")
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
