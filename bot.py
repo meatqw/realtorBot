@@ -1,5 +1,6 @@
 from distutils import extension
 from distutils.errors import DistutilsFileError
+from email.mime import message
 from aiogram.utils import executor
 from aiogram.dispatcher.filters import Text
 from aiogram import Bot, Dispatcher, types, executor
@@ -13,7 +14,7 @@ import logging
 import aiogram.utils.markdown as md
 
 KEYS = ['key']
-
+OBJECTS = {}
 
 logging.basicConfig(level=logging.INFO)
 
@@ -31,8 +32,10 @@ class userForm(StatesGroup):
     job = State()
     key = State()
     region = State()
-    
+
 # form objectsForm
+
+
 class objectsForm(StatesGroup):
     region = State()
     city = State()
@@ -45,6 +48,11 @@ class objectsForm(StatesGroup):
     property_type = State()
     ownership_type = State()
     phone = State()
+
+
+# user data
+class UserData(StatesGroup):
+    current_object = State()
 
 # REGISTRATION
 
@@ -116,7 +124,7 @@ async def process_check_key(message: types.Message):
 @dp.message_handler(lambda message: message.text in KEYS, state=userForm.key)
 async def process_key(message: types.Message, state: FSMContext):
     """KEY STATE"""
-    
+
     # start region state
     await userForm.next()
     # update key in state
@@ -144,7 +152,7 @@ async def process_region(message: types.Message, state: FSMContext):
 
         db.session.add(user)
         db.session.commit()
-        
+
         # send user data
         await bot.send_message(
             message.chat.id,
@@ -161,26 +169,30 @@ async def process_region(message: types.Message, state: FSMContext):
             parse_mode=ParseMode.MARKDOWN,
         )
 
-
     # finish state
     await state.finish()
 
 # CHECK AUTH USER
 
-# buttons
-buttons = ["Продажа", "Лента", "Мои объекты", "Уведомления"]
+# main keyboard
+buttons = [config.OBJECT_TEXT['main']['sale_btn'],
+           config.OBJECT_TEXT['main']['feed_btn'],
+           config.OBJECT_TEXT['main']['my_objects_btn'],
+           config.OBJECT_TEXT['main']['notification_btn']]
+main_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+main_keyboard.add(*buttons)
 
-@dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() != None 
-                    and message.text not in buttons)
+
+@dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() != None
+                    and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']])
 async def process_auth(message: types.Message):
     """USER AUTH"""
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.add(*buttons)
-    await message.answer(config.OBJECT_TEXT['user']['login'], reply_markup=keyboard)
+
+    await message.answer(config.OBJECT_TEXT['user']['login'], reply_markup=main_keyboard)
 
 
-@dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() == None 
-                    and message.text not in buttons)
+@dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() == None
+                    and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']])
 async def process_not_auth(message: types.Message):
     """USER NOT AUTH"""
     markup = types.ReplyKeyboardRemove()
@@ -196,14 +208,42 @@ async def process_not_auth(message: types.Message):
 
 # ----------------- SALE --------------------
 
-@dp.message_handler(Text(equals="Продажа"))
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['sale_btn']))
 async def function_sale(message: types.Message):
     """FUNCTION SALE (SALE STATE)"""
-    
+
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(config.OBJECT_TEXT['main']['cancel_btn'])
+
     # start objects region state
     await objectsForm.region.set()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['start_add'])
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['start_add'], reply_markup=keyboard)
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_region'])
+
+
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['cancel_btn'], ignore_case=True), state='*')
+async def cancel_handler(message: types.Message, state: FSMContext):
+    """CANCEL HANDLER"""
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+
+    await state.finish()
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['main']['cancel_ok'], reply_markup=main_keyboard)
+
+
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['back_btn'], ignore_case=True), state='*')
+async def back_handler(message: types.Message,  state: FSMContext):
+    """BACK HANDLER"""
+
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['main']['back_ok'], reply_markup=main_keyboard)
+
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+
+    await state.finish()
+
 
 @dp.message_handler(state=objectsForm.region)
 async def process_objects_region(message: types.Message, state: FSMContext):
@@ -216,6 +256,7 @@ async def process_objects_region(message: types.Message, state: FSMContext):
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_city'])
 
+
 @dp.message_handler(state=objectsForm.city)
 async def process_objects_city(message: types.Message, state: FSMContext):
     """OBJECTS CITY STATE"""
@@ -226,8 +267,8 @@ async def process_objects_city(message: types.Message, state: FSMContext):
     # start objects address state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_address'])
-    
-    
+
+
 @dp.message_handler(state=objectsForm.address)
 async def process_objects_address(message: types.Message, state: FSMContext):
     """OBJECTS ADDRESS STATE"""
@@ -239,6 +280,7 @@ async def process_objects_address(message: types.Message, state: FSMContext):
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_street'])
 
+
 @dp.message_handler(state=objectsForm.street)
 async def process_objects_street(message: types.Message, state: FSMContext):
     """OBJECTS STREET STATE"""
@@ -249,11 +291,13 @@ async def process_objects_street(message: types.Message, state: FSMContext):
     # start objects stage state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_stage'])
-    
+
+
 @dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.stage)
 async def process_stage_invalid(message: types.Message):
     return await message.reply(config.OBJECT_TEXT['objects']['exc_stage'])
-    
+
+
 @dp.message_handler(lambda message: message.text.isdigit(), state=objectsForm.stage)
 async def process_objects_stage(message: types.Message, state: FSMContext):
     """OBJECTS STAGE STATE"""
@@ -265,6 +309,7 @@ async def process_objects_stage(message: types.Message, state: FSMContext):
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_description'])
 
+
 @dp.message_handler(state=objectsForm.description)
 async def process_objects_description(message: types.Message, state: FSMContext):
     """OBJECTS DESCRIPTION STATE"""
@@ -275,8 +320,8 @@ async def process_objects_description(message: types.Message, state: FSMContext)
     # start objects price state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_price'])
-    
-    
+
+
 @dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.price)
 async def process_price_invalid(message: types.Message):
     return await message.reply(config.OBJECT_TEXT['objects']['exc_price'])
@@ -292,25 +337,34 @@ async def process_objects_price(message: types.Message, state: FSMContext):
     # start objects quadrature state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_quadrature'])
-    
-    
-property_type_keyboard = types.InlineKeyboardMarkup(resize_keyboard=True, selective=True)
-property_type_btn_1 = types.InlineKeyboardButton('Вторичка', callback_data='property_type_btn_1')
-property_type_btn_2 = types.InlineKeyboardButton('Первичка', callback_data='property_type_btn_2')
-property_type_btn_3 = types.InlineKeyboardButton('Новострой', callback_data='property_type_btn_3')
-property_type_keyboard.add(property_type_btn_1, property_type_btn_2, property_type_btn_3)
 
-ownership_type_keyboard = types.InlineKeyboardMarkup(resize_keyboard=True, selective=True)
-ownership_type_btn_1 = types.InlineKeyboardButton('Частная', callback_data='ownership_type_btn_1')
-ownership_type_btn_2 = types.InlineKeyboardButton('Государственная', callback_data='ownership_type_btn_2')
+
+property_type_keyboard = types.InlineKeyboardMarkup(
+    resize_keyboard=True, selective=True)
+property_type_btn_1 = types.InlineKeyboardButton(
+    'Вторичка', callback_data='property_type_btn_1')
+property_type_btn_2 = types.InlineKeyboardButton(
+    'Первичка', callback_data='property_type_btn_2')
+property_type_btn_3 = types.InlineKeyboardButton(
+    'Новострой', callback_data='property_type_btn_3')
+property_type_keyboard.add(
+    property_type_btn_1, property_type_btn_2, property_type_btn_3)
+
+ownership_type_keyboard = types.InlineKeyboardMarkup(
+    resize_keyboard=True, selective=True)
+ownership_type_btn_1 = types.InlineKeyboardButton(
+    'Частная', callback_data='ownership_type_btn_1')
+ownership_type_btn_2 = types.InlineKeyboardButton(
+    'Государственная', callback_data='ownership_type_btn_2')
 ownership_type_keyboard.add(ownership_type_btn_1, ownership_type_btn_2)
-    
 
-@dp.message_handler(lambda message: not message.text.replace(',', '.').replace('.','').isdigit(), state=objectsForm.quadrature)
+
+@dp.message_handler(lambda message: not message.text.replace(',', '.').replace('.', '').isdigit(), state=objectsForm.quadrature)
 async def process_quadrature_invalid(message: types.Message):
-    return await message.reply(config.OBJECT_TEXT['objects']['exc_quadrature'])    
+    return await message.reply(config.OBJECT_TEXT['objects']['exc_quadrature'])
 
-@dp.message_handler(lambda message: message.text.replace(',', '.').replace('.','').isdigit(), state=objectsForm.quadrature)
+
+@dp.message_handler(lambda message: message.text.replace(',', '.').replace('.', '').isdigit(), state=objectsForm.quadrature)
 async def process_objects_quadrature(message: types.Message, state: FSMContext):
     """OBJECTS QUADRATURE STATE"""
 
@@ -319,54 +373,55 @@ async def process_objects_quadrature(message: types.Message, state: FSMContext):
 
     # start objects property type state
     await objectsForm.next()
-    
+
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_property_type'], reply_markup=property_type_keyboard)
 
-    
+
 @dp.callback_query_handler(Text(startswith="property_type_btn_"), state=objectsForm.property_type)
 async def callbacks_property_type(call: types.CallbackQuery, state: FSMContext):
     """CALLBACK PROPERTY TYPE"""
     action = call.data.split('_')[-1]
-    
+
     if action == "1":
         p_type = 'Вторичка'
     elif action == "2":
         p_type = 'Первичка'
     elif action == "3":
         p_type = 'Новострой'
-        
+
     async with state.proxy() as data:
         data['property_type'] = p_type
-    
+
     # start objects ownership type type state
     await objectsForm.next()
-        
+
     await call.answer()
-    
+
     await bot.send_message(call.message.chat.id, p_type)
-    await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_ownership_type']
-                           , reply_markup=ownership_type_keyboard)
-    
+    await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_ownership_type'], reply_markup=ownership_type_keyboard)
+
+
 @dp.callback_query_handler(Text(startswith="ownership_type_btn_"), state=objectsForm.ownership_type)
 async def callbacks_ownership_type(call: types.CallbackQuery, state: FSMContext):
     """CALLBACK OWNERSHIP TYPE"""
     action = call.data.split('_')[-1]
-    
+
     if action == "1":
         o_type = 'Частная'
     elif action == "2":
         o_type = 'Государственная'
-        
+
     async with state.proxy() as data:
         data['ownership_type'] = o_type
-    
+
     # start objects phone state
     await objectsForm.next()
-        
+
     await call.answer()
-    
+
     await bot.send_message(call.message.chat.id, o_type)
     await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_phone'])
+
 
 @dp.message_handler(state=objectsForm.phone)
 async def process_objects_phone(message: types.Message, state: FSMContext):
@@ -392,7 +447,7 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
 
         db.session.add(object)
         db.session.commit()
-        
+
         # send object data
         await bot.send_message(
             message.chat.id,
@@ -407,33 +462,136 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
                 md.text('Цена: ', md.bold(data['price'] + ' р')),
                 md.text('Квадратура: ', md.bold(data['quadrature'] + ' м2')),
                 md.text('Тип недвижимости: ', md.bold(data['property_type'])),
-                md.text('Тип собственности: ', md.bold(data['ownership_type'])),
+                md.text('Тип собственности: ', md.bold(
+                    data['ownership_type'])),
                 md.text('Телефон: ', md.bold(data['phone'])),
                 sep='\n',
             ),
+            reply_markup=main_keyboard,
             parse_mode=ParseMode.MARKDOWN,
         )
 
     # finish state
     await state.finish()
-    
 
-@dp.message_handler(Text(equals="Лента"))
+
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['feed_btn']))
 async def function_feed(message: types.Message):
     """FUNCTION FEED"""
-    await message.reply("Лента")
 
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
 
-@dp.message_handler(Text(equals="Мои объекты"))
+    await message.reply("Лента", reply_markup=keyboard)
+
+# -------------------- MY OBJECTS ------------------------
+
+def render_all_objects(id):
+    
+    objects_keyboard = types.InlineKeyboardMarkup(
+        resize_keyboard=True, selective=True, row_width=1)
+    my_objects = Objects.query.filter_by(user=id).all()
+    buttons = []
+    for object in my_objects:
+        buttons.append(types.InlineKeyboardButton(f'{object.region}, {object.address}, {object.street}, {object.price}',
+                                                  callback_data=f'object_{object.id}'))
+
+    objects_keyboard.add(*buttons)
+    
+    return objects_keyboard
+
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['my_objects_btn']))
 async def function_my_objects(message: types.Message):
     """FUNCTION MY OBJECTS"""
-    await message.reply("Мои объекты")
+
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
+
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['main']['my_objects_btn'], reply_markup=keyboard)
+    objects_keyboard = render_all_objects(message.chat.id)
+    
+    msg = await bot.send_message(message.chat.id, "Все объекты", reply_markup=objects_keyboard)
+    OBJECTS[message.chat.id] = {'object_list': msg}
+
+    await UserData.current_object.set()
 
 
-@dp.message_handler(Text(equals="Уведомления"))
+@dp.callback_query_handler(Text(startswith="object_"), state=UserData.current_object)
+async def callbacks_my_object(call: types.CallbackQuery, state: FSMContext):
+    """CALLBACK MY OBJECT"""
+
+    action = call.data.split('_')[-1]
+    object = Objects.query.filter_by(id=int(action)).first()
+    object_control_keyboard = types.InlineKeyboardMarkup(
+        resize_keyboard=True, selective=True)
+
+    async with state.proxy() as data:
+        if 'current_object' in data:
+            await data['current_object'].delete()
+
+        # add buttons
+        object_control_keyboard.add(*[
+            types.InlineKeyboardButton(
+                f'Продлить', callback_data=f'extend_object_{object.id}'),
+            types.InlineKeyboardButton(
+                f'Удалить', callback_data=f'del_object_{object.id}')
+        ])
+        # send object data
+        message_object_id = await bot.send_message(
+            call.message.chat.id,
+            md.text(
+                md.text('Регион: ', md.bold(object.region)),
+                md.text('Город: ', md.bold(object.city)),
+                md.text('Адрес: ', md.bold(object.address)),
+                md.text('Улица: ', md.bold(object.street)),
+                md.text('Этаж: ', md.bold(object.stage)),
+                md.text('Описание: ', md.bold(object.description)),
+                md.text('Цена: ', md.bold(str(object.price) + ' р')),
+                md.text('Квадратура: ', md.bold(
+                    str(object.quadrature) + ' м2')),
+                md.text('Тип недвижимости: ', md.bold(object.property_type)),
+                md.text('Тип собственности: ', md.bold(object.ownership_type)),
+                md.text('Телефон: ', md.bold(object.phone)),
+                sep='\n',
+            ),
+            reply_markup=object_control_keyboard,
+            parse_mode=ParseMode.MARKDOWN,
+        )
+
+        data['current_object'] = message_object_id
+
+@dp.callback_query_handler(Text(startswith="del_object_"), state=UserData.current_object)
+async def callback_delete_my_object(call: types.CallbackQuery, state: FSMContext):
+    """CALLBACK DELETE OBJECT"""
+    action = call.data.split('_')[-1]
+    
+    async with state.proxy() as data:
+        if 'current_object' in data:
+            await data['current_object'].delete()
+    
+    # del rec DB
+    Objects.query.filter_by(id=int(action)).delete()
+    db.session.commit()
+    
+    # rerender my object form 
+    await OBJECTS[call.message.chat.id]['object_list'].delete()
+    objects_keyboard = render_all_objects(call.message.chat.id)
+    
+    msg = await bot.send_message(call.message.chat.id, "Все объекты", reply_markup=objects_keyboard)
+    OBJECTS[call.message.chat.id] = {'object_list': msg}
+    
+    
+    
+
+
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['notification_btn']))
 async def function_notifications(message: types.Message):
     """FUNCTION NOTIFICATIONS"""
-    await message.reply("Уведомления")
+
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
+
+    await message.reply("Уведомления", reply_markup=keyboard)
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)

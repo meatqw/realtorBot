@@ -1,4 +1,4 @@
-#!/home/oleg/python/bot/env/bin/python3
+#!/Users/neetqw/python/realtorBot/env/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

@@ -3,7 +3,7 @@ TOKEN = '5760331339:AAG4QLiTfFBO2z9SDtSoAOGVw3-ukMsiX9g'
 DB_HOST = 'localhost'
 DB_PORT = 3306
 DB_LOGIN = 'root'
-DB_PASS = 'Neetqw2110+++'  # mac Neetqw2110
+DB_PASS = 'Neetqw2110'  # no mac Neetqw2110+++
 DB_NAME = 'realtor'
 
 # --------- object text ---------
@@ -45,5 +45,15 @@ OBJECT_TEXT = {
         'exc_stage': 'Ошибка ввода. Повторите запрос.\nТекст должен содержать только цифры',
         'exc_price': 'Ошибка ввода. Повторите запрос.\nДопустимы только целые числа.',
         'exc_quadrature': 'Ошибка ввода. Повторите запрос.\nДопустимы дробные и целые числа.'
+    },
+    'main': {
+        'sale_btn': 'Продажа',
+        'feed_btn': 'Лента',
+        'my_objects_btn': 'Мои объекты',
+        'notification_btn': 'Уведомления',
+        'cancel_btn': 'Отмена',
+        'cancel_ok': 'Ок',
+        'back_btn': 'Назад',
+        'back_ok': 'Ок'
     }
 }
