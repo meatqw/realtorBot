@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import os
@@ -41,6 +41,7 @@ class Objects(db.Model):
     property_type = db.Column(db.String(400), nullable=True)
     ownership_type = db.Column(db.String(400), nullable=True)
     phone = db.Column(db.String(200), nullable=True)
+    date_end = db.Column(db.DateTime, nullable=False, default=datetime.now() + timedelta(days=30))
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
 # DB model Keys
