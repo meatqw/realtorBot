@@ -40,8 +40,10 @@ class userForm(StatesGroup):
 class objectsForm(StatesGroup):
     region = State()
     city = State()
+    area = State()
     address = State()
     street = State()
+    rooms = State()
     stage = State()
     description = State()
     price = State()
@@ -49,6 +51,12 @@ class objectsForm(StatesGroup):
     property_type = State()
     ownership_type = State()
     phone = State()
+    
+class Filter(StatesGroup):
+    city = State()
+    area = State()
+    rooms = State()
+    price = State()
 
 
 # user data
@@ -207,21 +215,6 @@ async def process_not_auth(message: types.Message):
 
 # FUNCTIONS
 
-# ----------------- SALE --------------------
-
-@dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['sale_btn']))
-async def function_sale(message: types.Message):
-    """FUNCTION SALE (SALE STATE)"""
-
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.add(config.OBJECT_TEXT['main']['cancel_btn'])
-
-    # start objects region state
-    await objectsForm.region.set()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['start_add'], reply_markup=keyboard)
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_region'])
-
-
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['cancel_btn'], ignore_case=True), state='*')
 async def cancel_handler(message: types.Message, state: FSMContext):
     """CANCEL HANDLER"""
@@ -244,6 +237,19 @@ async def back_handler(message: types.Message,  state: FSMContext):
         return
 
     await state.finish()
+# ----------------- SALE --------------------
+
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['sale_btn']))
+async def function_sale(message: types.Message):
+    """FUNCTION SALE (SALE STATE)"""
+
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(config.OBJECT_TEXT['main']['cancel_btn'])
+
+    # start objects region state
+    await objectsForm.region.set()
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['start_add'], reply_markup=keyboard)
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_region'])
 
 
 @dp.message_handler(state=objectsForm.region)
@@ -267,6 +273,17 @@ async def process_objects_city(message: types.Message, state: FSMContext):
 
     # start objects address state
     await objectsForm.next()
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_area'])
+    
+@dp.message_handler(state=objectsForm.area)
+async def process_objects_area(message: types.Message, state: FSMContext):
+    """OBJECTS AREA STATE"""
+
+    async with state.proxy() as data:
+        data['area'] = message.text
+
+    # start objects area state
+    await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_address'])
 
 
@@ -288,6 +305,21 @@ async def process_objects_street(message: types.Message, state: FSMContext):
 
     async with state.proxy() as data:
         data['street'] = message.text
+
+    # start objects rooms state
+    await objectsForm.next()
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_rooms'])
+    
+@dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.rooms)
+async def process_rooms_invalid(message: types.Message):
+    return await message.reply(config.OBJECT_TEXT['objects']['exc_rooms'])
+
+@dp.message_handler(lambda message: message.text.isdigit(), state=objectsForm.rooms)
+async def process_objects_rooms(message: types.Message, state: FSMContext):
+    """OBJECTS ROOMS STATE"""
+
+    async with state.proxy() as data:
+        data['rooms'] = message.text
 
     # start objects stage state
     await objectsForm.next()
@@ -436,8 +468,10 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
             user=str(message.chat.id),
             region=data['region'],
             city=data['city'],
+            area=data['area'],
             address=data['address'],
             street=data['street'],
+            rooms = data['rooms'],
             stage=data['stage'],
             description=data['description'],
             price=data['price'],
@@ -456,8 +490,10 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
                 md.text(config.OBJECT_TEXT['objects']['finish_add']),
                 md.text('Регион: ', md.bold(data['region'])),
                 md.text('Город: ', md.bold(data['city'])),
+                md.text('Район: ', md.bold(data['area'])),
                 md.text('Адрес: ', md.bold(data['address'])),
                 md.text('Улица: ', md.bold(data['street'])),
+                md.text('Кол-во комнат: ', md.bold(data['rooms'])),
                 md.text('Этаж: ', md.bold(data['stage'])),
                 md.text('Описание: ', md.bold(data['description'])),
                 md.text('Цена: ', md.bold(data['price'] + ' р')),
@@ -499,6 +535,19 @@ async def function_feed(message: types.Message):
     
     await bot.send_message(message.chat.id, "Применить фильтр к ленте", reply_markup=filter_keyboard)
 
+def render_all_feed():
+    """FEED. RENDER ALL OBJECTS"""
+    feed_keyboard = types.InlineKeyboardMarkup(
+        resize_keyboard=True, selective=True, row_width=1)
+    my_objects = Objects.query.all()
+    buttons = []
+    for object in my_objects:
+        buttons.append(types.InlineKeyboardButton(f'{object.region}, {object.address}, {object.street}, {object.price}',
+                                                  callback_data=f'feed_object_{object.id}'))
+
+    feed_keyboard.add(*buttons)
+    return feed_keyboard
+
 @dp.callback_query_handler(Text(startswith="filter_"))
 async def callback_filter_switch(call: types.CallbackQuery):
     """CALLBACK FILTER SWITCH"""
@@ -508,7 +557,10 @@ async def callback_filter_switch(call: types.CallbackQuery):
     if action == 'yes':
         print('yes')
     elif action == 'no':
-        print('no')
+        # get objects without filter
+        await bot.send_message(call.message.chat.id, "Все объекты", reply_markup=render_all_feed())
+        
+        
     
     
 # -------------------- MY OBJECTS ------------------------
@@ -566,8 +618,10 @@ async def callbacks_my_object(call: types.CallbackQuery):
         md.text(
             md.text('Регион: ', md.bold(object.region)),
             md.text('Город: ', md.bold(object.city)),
+            md.text('Район: ', md.bold(object.area)),
             md.text('Адрес: ', md.bold(object.address)),
             md.text('Улица: ', md.bold(object.street)),
+            md.text('Кол-во комнат: ', md.bold(object.rooms)),
             md.text('Этаж: ', md.bold(object.stage)),
             md.text('Описание: ', md.bold(object.description)),
             md.text('Цена: ', md.bold(str(object.price) + ' р')),
