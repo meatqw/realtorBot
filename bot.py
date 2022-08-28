@@ -13,9 +13,12 @@ from aiogram.types import ParseMode
 import logging
 import aiogram.utils.markdown as md
 import datetime
+from ddata import get_data
 
 KEYS = ['key']
 OBJECTS = {}
+FILTER = {}
+CITY = ['']
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,12 +54,6 @@ class objectsForm(StatesGroup):
     property_type = State()
     ownership_type = State()
     phone = State()
-    
-class Filter(StatesGroup):
-    city = State()
-    area = State()
-    rooms = State()
-    price = State()
 
 
 # user data
@@ -239,6 +236,7 @@ async def back_handler(message: types.Message,  state: FSMContext):
     await state.finish()
 # ----------------- SALE --------------------
 
+
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['sale_btn']))
 async def function_sale(message: types.Message):
     """FUNCTION SALE (SALE STATE)"""
@@ -251,48 +249,65 @@ async def function_sale(message: types.Message):
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['start_add'], reply_markup=keyboard)
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_region'])
 
+@dp.message_handler(lambda message: not get_data(message.text)['status'], state=objectsForm.region)
+async def process_region_invalid(message: types.Message):
+    return await message.reply(config.OBJECT_TEXT['objects']['exc_region'])
 
-@dp.message_handler(state=objectsForm.region)
+@dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.region)
 async def process_objects_region(message: types.Message, state: FSMContext):
     """OBJECTS REGION STATE"""
 
     async with state.proxy() as data:
-        data['region'] = message.text
+        region = get_data(message.text)['result']
+        data['region'] = region
 
     # start objects city state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_city'])
+    
+@dp.message_handler(lambda message: not get_data(message.text)['status'], state=objectsForm.city)
+async def process_city_invalid(message: types.Message):
+    return await message.reply(config.OBJECT_TEXT['objects']['exc_city'])
 
-
-@dp.message_handler(state=objectsForm.city)
+@dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.city)
 async def process_objects_city(message: types.Message, state: FSMContext):
     """OBJECTS CITY STATE"""
 
     async with state.proxy() as data:
-        data['city'] = message.text
+        city = get_data(message.text)['result']
+        data['city'] = city
 
     # start objects address state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_area'])
-    
-@dp.message_handler(state=objectsForm.area)
+
+@dp.message_handler(lambda message: not get_data(message.text)['status'], state=objectsForm.area)
+async def process_area_invalid(message: types.Message):
+    return await message.reply(config.OBJECT_TEXT['objects']['exc_area'])
+
+@dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.area)
 async def process_objects_area(message: types.Message, state: FSMContext):
     """OBJECTS AREA STATE"""
 
     async with state.proxy() as data:
-        data['area'] = message.text
+        area = get_data(message.text)['result']
+        data['area'] = area
 
     # start objects area state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_address'])
 
+@dp.message_handler(lambda message: not get_data(message.text)['status'], state=objectsForm.address)
+async def process_address_invalid(message: types.Message):
+    return await message.reply(config.OBJECT_TEXT['objects']['exc_address'])
 
-@dp.message_handler(state=objectsForm.address)
+@dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.address)
 async def process_objects_address(message: types.Message, state: FSMContext):
     """OBJECTS ADDRESS STATE"""
 
     async with state.proxy() as data:
-        data['address'] = message.text
+        address = get_data(message.text)['result']
+        data['address'] = address
 
     # start objects street state
     await objectsForm.next()
@@ -309,10 +324,12 @@ async def process_objects_street(message: types.Message, state: FSMContext):
     # start objects rooms state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_rooms'])
-    
+
+
 @dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.rooms)
 async def process_rooms_invalid(message: types.Message):
     return await message.reply(config.OBJECT_TEXT['objects']['exc_rooms'])
+
 
 @dp.message_handler(lambda message: message.text.isdigit(), state=objectsForm.rooms)
 async def process_objects_rooms(message: types.Message, state: FSMContext):
@@ -471,7 +488,7 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
             area=data['area'],
             address=data['address'],
             street=data['street'],
-            rooms = data['rooms'],
+            rooms=data['rooms'],
             stage=data['stage'],
             description=data['description'],
             price=data['price'],
@@ -513,6 +530,7 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
 
 # ----------------- FEED --------------------
 
+
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['feed_btn']))
 async def function_feed(message: types.Message):
     """FUNCTION FEED"""
@@ -521,19 +539,22 @@ async def function_feed(message: types.Message):
     keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
 
     await bot.send_message(message.chat.id, "Лента", reply_markup=keyboard)
-    
+
     # filter switch
     filter_keyboard = types.InlineKeyboardMarkup(
         resize_keyboard=True, selective=True)
-    
+
     filter_keyboard.add(*[
         types.InlineKeyboardButton(
-            f'Да', callback_data=f'filter_yes'),
+            f'Да', callback_data=f'filter_switch_yes'),
         types.InlineKeyboardButton(
-            f'Нет', callback_data=f'filter_no')
+            f'Нет', callback_data=f'filter_switch_no')
     ])
-    
+
     await bot.send_message(message.chat.id, "Применить фильтр к ленте", reply_markup=filter_keyboard)
+
+    OBJECTS[message.chat.id] = {}
+
 
 def render_all_feed():
     """FEED. RENDER ALL OBJECTS"""
@@ -543,26 +564,107 @@ def render_all_feed():
     buttons = []
     for object in my_objects:
         buttons.append(types.InlineKeyboardButton(f'{object.region}, {object.address}, {object.street}, {object.price}',
-                                                  callback_data=f'feed_object_{object.id}'))
+                                                  callback_data=f'object_feed_{object.id}'))
 
     feed_keyboard.add(*buttons)
     return feed_keyboard
 
+
+def render_filter_button(id):
+    """FEED. RENDER FILTER BUTTONS"""
+    filter_items_keyboard = types.InlineKeyboardMarkup(
+        resize_keyboard=True, selective=True, row_width=1)
+
+    if id in FILTER:
+        if 'city' in FILTER['city']:
+            current_city = FILTER['city']
+        else:
+            current_city = None
+
+        if 'area' in FILTER['area']:
+            current_area = FILTER['area']
+        else:
+            current_area = None
+
+        if 'rooms' in FILTER['rooms']:
+            current_rooms = FILTER['rooms']
+        else:
+            current_rooms = None
+
+        if 'price' in FILTER['price']:
+            current_price = FILTER['price']
+        else:
+            current_price = None
+    else:
+        current_city = None
+        current_area = None
+        current_rooms = None
+        current_price = None
+
+        FILTER[id] = {'city': current_city, 'area': current_area,
+                      'rooms': current_rooms, 'price': current_price}
+
+    buttons = [
+        types.InlineKeyboardButton(
+            f'Населенный пункт: {current_city}', callback_data=f'filter_item_city'),
+        types.InlineKeyboardButton(
+            f'Район: {current_area}', callback_data=f'filter_item_area'),
+        types.InlineKeyboardButton(
+            f'Кол-во комнат: {current_rooms}', callback_data=f'filter_item_rooms'),
+        types.InlineKeyboardButton(
+            f'Цена: {current_price}', callback_data=f'filter_item_price'),
+        types.InlineKeyboardButton(f'Готово', callback_data=f'filter_ок')
+    ]
+
+    filter_items_keyboard.add(*buttons)
+    return filter_items_keyboard
+
+
+async def render_item(id, item):
+    """RENDER FILTER ITEM"""
+    if 'current_item' in FILTER[id]:
+        await FILTER[id]['current_item'].delete()
+    
+    if item == 'city':
+        
+        item = await bot.send_message(id, "Населенный пункт")
+    elif item == 'area':
+        item = await bot.send_message(id, "Район")
+    elif item == 'rooms':
+        item = await bot.send_message(id, "Кол-во комнат")
+    elif item == 'price':
+        item = await bot.send_message(id, "Цена")
+        
+    FILTER[id]['current_item'] = item
+
+
 @dp.callback_query_handler(Text(startswith="filter_"))
-async def callback_filter_switch(call: types.CallbackQuery):
-    """CALLBACK FILTER SWITCH"""
+async def callback_filter(call: types.CallbackQuery):
+    """CALLBACK FILTER"""
 
     action = call.data.split('_')[-1]
-        
-    if action == 'yes':
-        print('yes')
-    elif action == 'no':
-        # get objects without filter
-        await bot.send_message(call.message.chat.id, "Все объекты", reply_markup=render_all_feed())
-        
-        
-    
-    
+    func_action = call.data.split('_')[-2]
+
+    # switch yes/no
+    if func_action == 'switch':
+        if action == 'yes':
+            await bot.send_message(call.message.chat.id, "Фильтр", reply_markup=render_filter_button(call.message.chat.id))
+        elif action == 'no':
+            # get objects without filter
+            await bot.send_message(call.message.chat.id, "Все объекты", reply_markup=render_all_feed())
+
+    # filter items
+    elif func_action == 'item':
+        if action == 'city':
+            await render_item(call.message.chat.id, 'city')
+        elif action == 'area':
+            await render_item(call.message.chat.id, 'area')
+        elif action == 'rooms':
+            await render_item(call.message.chat.id, 'rooms')
+        elif action == 'price':
+            await render_item(call.message.chat.id, 'price')
+
+
 # -------------------- MY OBJECTS ------------------------
 
 def render_all_objects(id):
@@ -573,10 +675,11 @@ def render_all_objects(id):
     buttons = []
     for object in my_objects:
         buttons.append(types.InlineKeyboardButton(f'{object.region}, {object.address}, {object.street}, {object.price}',
-                                                  callback_data=f'object_{object.id}'))
+                                                  callback_data=f'object_my_{object.id}'))
 
     objects_keyboard.add(*buttons)
     return objects_keyboard
+
 
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['my_objects_btn']))
 async def function_my_objects(message: types.Message):
@@ -587,23 +690,26 @@ async def function_my_objects(message: types.Message):
 
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['main']['my_objects_btn'], reply_markup=keyboard)
     objects_keyboard = render_all_objects(message.chat.id)
-    
+
     msg = await bot.send_message(message.chat.id, "Все объекты", reply_markup=objects_keyboard)
     OBJECTS[message.chat.id] = {'object_list': msg}
 
 
 @dp.callback_query_handler(Text(startswith="object_"))
 async def callbacks_my_object(call: types.CallbackQuery):
-    """CALLBACK MY OBJECT"""
-
+    """CALLBACK MY OBJECT/FEED"""
     action = call.data.split('_')[-1]
+    func_action = call.data.split('_')[-2]
+
+    # get data from db MY OBJECTS/FEED
     object = Objects.query.filter_by(id=int(action)).first()
+
     object_control_keyboard = types.InlineKeyboardMarkup(
         resize_keyboard=True, selective=True)
 
     if 'current_object' in OBJECTS[call.message.chat.id]:
         await OBJECTS[call.message.chat.id]['current_object'].delete()
-        
+
     # add buttons
     object_control_keyboard.add(*[
         types.InlineKeyboardButton(
@@ -611,74 +717,84 @@ async def callbacks_my_object(call: types.CallbackQuery):
         types.InlineKeyboardButton(
             f'Удалить', callback_data=f'del_object_{object.id}')
     ])
-    
-    # send object data
-    message_object_id = await bot.send_message(
-        call.message.chat.id,
-        md.text(
-            md.text('Регион: ', md.bold(object.region)),
-            md.text('Город: ', md.bold(object.city)),
-            md.text('Район: ', md.bold(object.area)),
-            md.text('Адрес: ', md.bold(object.address)),
-            md.text('Улица: ', md.bold(object.street)),
-            md.text('Кол-во комнат: ', md.bold(object.rooms)),
-            md.text('Этаж: ', md.bold(object.stage)),
-            md.text('Описание: ', md.bold(object.description)),
-            md.text('Цена: ', md.bold(str(object.price) + ' р')),
-            md.text('Квадратура: ', md.bold(
+
+    text = md.text(
+        md.text('Регион: ', md.bold(object.region)),
+        md.text('Город: ', md.bold(object.city)),
+        md.text('Район: ', md.bold(object.area)),
+        md.text('Адрес: ', md.bold(object.address)),
+        md.text('Улица: ', md.bold(object.street)),
+        md.text('Кол-во комнат: ', md.bold(object.rooms)),
+        md.text('Этаж: ', md.bold(object.stage)),
+        md.text('Описание: ', md.bold(object.description)),
+        md.text('Цена: ', md.bold(str(object.price) + ' р')),
+        md.text('Квадратура: ', md.bold(
                 str(object.quadrature) + ' м2')),
-            md.text('Тип недвижимости: ', md.bold(object.property_type)),
-            md.text('Тип собственности: ', md.bold(object.ownership_type)),
-            md.text('Телефон: ', md.bold(object.phone)),
-            md.text('Дейтвительно до: ', md.bold(str(object.date_end))),
-            
-            sep='\n',
-        ),
-        reply_markup=object_control_keyboard,
-        parse_mode=ParseMode.MARKDOWN,
+        md.text('Тип недвижимости: ', md.bold(object.property_type)),
+        md.text('Тип собственности: ', md.bold(object.ownership_type)),
+        md.text('Телефон: ', md.bold(object.phone)),
+        md.text('Дейтвительно до: ', md.bold(str(object.date_end))),
+
+        sep='\n',
     )
+
+    if func_action == 'my':
+        # send object data (MY OBJECTS)
+        message_object_id = await bot.send_message(
+            call.message.chat.id,
+            text,
+            reply_markup=object_control_keyboard,
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    else:
+        # send object data FEED
+        message_object_id = await bot.send_message(
+            call.message.chat.id,
+            text,
+            parse_mode=ParseMode.MARKDOWN,
+        )
 
     # save current object
     OBJECTS[call.message.chat.id]['current_object'] = message_object_id
+
 
 @dp.callback_query_handler(Text(startswith="del_object_"))
 async def callback_delete_my_object(call: types.CallbackQuery):
     """CALLBACK DELETE OBJECT"""
     action = call.data.split('_')[-1]
-    
+
     if 'current_object' in OBJECTS[call.message.chat.id]:
         await OBJECTS[call.message.chat.id]['current_object'].delete()
-    
+
     # del rec DB
     Objects.query.filter_by(id=int(action)).delete()
     db.session.commit()
-    
-    # rerender my object form 
+
+    # rerender my object form
     await OBJECTS[call.message.chat.id]['object_list'].delete()
     objects_keyboard = render_all_objects(call.message.chat.id)
-    
+
     msg = await bot.send_message(call.message.chat.id, "Все объекты", reply_markup=objects_keyboard)
-    
+
     # save current object list
     OBJECTS[call.message.chat.id] = {'object_list': msg}
-    
+
 
 @dp.callback_query_handler(Text(startswith="extend_object_"))
 async def callback_extend_my_object(call: types.CallbackQuery):
     """CALLBACK EXTEND OBJECT"""
     action = call.data.split('_')[-1]
-    
+
     if 'current_object' in OBJECTS[call.message.chat.id]:
         await OBJECTS[call.message.chat.id]['current_object'].delete()
-    
+
     # update rec DB
     object = Objects.query.filter_by(id=int(action)).first()
     object.date_end += datetime.timedelta(days=30)
     db.session.commit()
-    
+
     del OBJECTS[call.message.chat.id]['current_object']
-    
-    
+
 
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['notification_btn']))
 async def function_notifications(message: types.Message):
