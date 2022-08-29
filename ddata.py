@@ -8,8 +8,11 @@ secret = D_SECRET_KEY
 def get_data(source):
     with Dadata(token, secret) as dadata:
         result = dadata.clean(name="address", source=source)
-        
+        for i in result:
+            print(i, result[i])
     try:
-        return {'result': result['result'].replace('г ', ''). replace('р-н ', ''), 'status': True}
+        return {'result': result['result'], 'status': True}
     except Exception as e:
         return {'result': None, 'status': False}
+
+print(get_data('Новосибирская область Новосибирск'))

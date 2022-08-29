@@ -274,7 +274,7 @@ async def process_objects_city(message: types.Message, state: FSMContext):
     """OBJECTS CITY STATE"""
 
     async with state.proxy() as data:
-        city = get_data(message.text)['result']
+        city = get_data(f"{data['region']} {message.text}")['result']
         data['city'] = city
 
     # start objects address state

@@ -23,7 +23,6 @@ class Users(db.Model):
     job = db.Column(db.String(400), nullable=True)
     region = db.Column(db.String(400), nullable=True)
     key = db.Column(db.String(400), nullable=True)
-    region = db.Column(db.String(400), nullable=True)
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
 # DB model Objects
@@ -49,6 +48,7 @@ class Objects(db.Model):
 # DB model Keys
 class AccessKeys(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
+    key = db.Column(db.String(400), nullable=True)
     user = db.Column(db.String(200), db.ForeignKey('users.id'), nullable=True)
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
