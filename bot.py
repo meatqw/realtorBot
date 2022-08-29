@@ -1,3 +1,4 @@
+from audioop import add
 from distutils import extension
 from distutils.errors import DistutilsFileError
 from email.mime import message
@@ -45,7 +46,7 @@ class objectsForm(StatesGroup):
     city = State()
     area = State()
     address = State()
-    street = State()
+    # street = State()
     rooms = State()
     stage = State()
     description = State()
@@ -256,11 +257,13 @@ async def process_region_invalid(message: types.Message):
 @dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.region)
 async def process_objects_region(message: types.Message, state: FSMContext):
     """OBJECTS REGION STATE"""
-
+    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
+    
     async with state.proxy() as data:
-        region = get_data(message.text)['result']
+        region = get_data(message.text)['result']['region']
         data['region'] = region
-
+        
+    await msg.delete()
     # start objects city state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_city'])
@@ -273,10 +276,13 @@ async def process_city_invalid(message: types.Message):
 async def process_objects_city(message: types.Message, state: FSMContext):
     """OBJECTS CITY STATE"""
 
+    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
+    
     async with state.proxy() as data:
-        city = get_data(f"{data['region']} {message.text}")['result']
+        city = get_data(f"{data['region']} {message.text}")['result']['city']
         data['city'] = city
 
+    await msg.delete()
     # start objects address state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_area'])
@@ -288,11 +294,14 @@ async def process_area_invalid(message: types.Message):
 @dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.area)
 async def process_objects_area(message: types.Message, state: FSMContext):
     """OBJECTS AREA STATE"""
-
+    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
     async with state.proxy() as data:
-        area = get_data(message.text)['result']
+        area = get_data(f"{data['region']} {data['city']} {message.text} р-н")['result']['city_district']
+        if area == None:
+            area = message.text
         data['area'] = area
 
+    await msg.delete()
     # start objects area state
     await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_address'])
@@ -305,25 +314,29 @@ async def process_address_invalid(message: types.Message):
 async def process_objects_address(message: types.Message, state: FSMContext):
     """OBJECTS ADDRESS STATE"""
 
+    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
+    
     async with state.proxy() as data:
-        address = get_data(message.text)['result']
-        data['address'] = address
+        address = get_data(f"{data['region']} {data['city']} {data['area']} {message.text}")['result']
+        data['address'] = address['street'] + ' д ' + address['house']
+        data['street'] = address['street']
 
+    await msg.delete()
     # start objects street state
     await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_street'])
-
-
-@dp.message_handler(state=objectsForm.street)
-async def process_objects_street(message: types.Message, state: FSMContext):
-    """OBJECTS STREET STATE"""
-
-    async with state.proxy() as data:
-        data['street'] = message.text
-
-    # start objects rooms state
-    await objectsForm.next()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_rooms'])
+
+
+# @dp.message_handler(state=objectsForm.street)
+# async def process_objects_street(message: types.Message, state: FSMContext):
+#     """OBJECTS STREET STATE"""
+
+#     async with state.proxy() as data:
+#         data['street'] = message.text
+
+#     # start objects rooms state
+#     await objectsForm.next()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_rooms'])
 
 
 @dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.rooms)

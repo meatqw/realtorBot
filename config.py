@@ -3,7 +3,7 @@ TOKEN = '5760331339:AAG4QLiTfFBO2z9SDtSoAOGVw3-ukMsiX9g'
 DB_HOST = 'localhost'
 DB_PORT = 3306
 DB_LOGIN = 'root'
-DB_PASS = 'Neetqw2110'  # no mac Neetqw2110+++
+DB_PASS = 'Neetqw2110+++'  # mac Neetqw2110
 DB_NAME = 'realtor'
 
 
@@ -57,7 +57,8 @@ OBJECT_TEXT = {
         'exc_region': 'Ошибка ввода. Повторите запрос.',
         'exc_city': 'Ошибка ввода. Повторите запрос.',
         'exc_address': 'Ошибка ввода. Повторите запрос.',
-        'exc_area': 'Ошибка ввода. Повторите запрос.'
+        'exc_area': 'Ошибка ввода. Повторите запрос.',
+        'loading': 'Загрузка...'
     },
     'main': {
         'sale_btn': 'Продажа',
