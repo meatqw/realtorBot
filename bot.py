@@ -589,23 +589,23 @@ def render_filter_button(id):
         resize_keyboard=True, selective=True, row_width=1)
 
     if id in FILTER:
-        if 'city' in FILTER['city']:
-            current_city = FILTER['city']
+        if 'city' in FILTER[id]:
+            current_city = FILTER[id]['city']
         else:
             current_city = None
 
-        if 'area' in FILTER['area']:
-            current_area = FILTER['area']
+        if 'area' in FILTER[id]:
+            current_area = FILTER[id]['area']
         else:
             current_area = None
 
-        if 'rooms' in FILTER['rooms']:
-            current_rooms = FILTER['rooms']
+        if 'rooms' in FILTER[id]:
+            current_rooms = FILTER[id]['rooms']
         else:
             current_rooms = None
 
-        if 'price' in FILTER['price']:
-            current_price = FILTER['price']
+        if 'price' in FILTER[id]:
+            current_price = FILTER[id]['price']
         else:
             current_price = None
     else:
@@ -639,7 +639,6 @@ async def render_item(id, item):
         await FILTER[id]['current_item'].delete()
     
     if item == 'city':
-        
         item = await bot.send_message(id, "Населенный пункт")
     elif item == 'area':
         item = await bot.send_message(id, "Район")
