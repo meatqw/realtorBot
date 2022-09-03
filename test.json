@@ -1,0 +1,135 @@
+{
+  "response": {
+    "GeoObjectCollection": {
+      "metaDataProperty": {
+        "GeocoderResponseMetaData": {
+          "request": "Алтайский, Барнаул, Индустриальный, Энтузиастов, 27д",
+          "results": "10",
+          "found": "2"
+        }
+      },
+      "featureMember": [
+        {
+          "GeoObject": {
+            "metaDataProperty": {
+              "GeocoderMetaData": {
+                "precision": "number",
+                "text": "Россия, Алтайский край, Барнаул, улица Энтузиастов, 27",
+                "kind": "house",
+                "Address": {
+                  "country_code": "RU",
+                  "formatted": "Россия, Алтайский край, Барнаул, улица Энтузиастов, 27",
+                  "postal_code": "656057",
+                  "Components": [
+                    { "kind": "country", "name": "Россия" },
+                    {
+                      "kind": "province",
+                      "name": "Сибирский федеральный округ"
+                    },
+                    { "kind": "province", "name": "Алтайский край" },
+                    {
+                      "kind": "area",
+                      "name": "муниципальное образование Барнаул"
+                    },
+                    { "kind": "locality", "name": "Барнаул" },
+                    { "kind": "street", "name": "улица Энтузиастов" },
+                    { "kind": "house", "name": "27" }
+                  ]
+                },
+                "AddressDetails": {
+                  "Country": {
+                    "AddressLine": "Россия, Алтайский край, Барнаул, улица Энтузиастов, 27",
+                    "CountryNameCode": "RU",
+                    "CountryName": "Россия",
+                    "AdministrativeArea": {
+                      "AdministrativeAreaName": "Алтайский край",
+                      "SubAdministrativeArea": {
+                        "SubAdministrativeAreaName": "муниципальное образование Барнаул",
+                        "Locality": {
+                          "LocalityName": "Барнаул",
+                          "Thoroughfare": {
+                            "ThoroughfareName": "улица Энтузиастов",
+                            "Premise": {
+                              "PremiseNumber": "27",
+                              "PostalCode": { "PostalCodeNumber": "656057" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "name": "улица Энтузиастов, 27",
+            "description": "Барнаул, Алтайский край, Россия",
+            "boundedBy": {
+              "Envelope": {
+                "lowerCorner": "83.675859 53.350908",
+                "upperCorner": "83.684069 53.35582"
+              }
+            },
+            "Point": { "pos": "83.679964 53.353364" }
+          }
+        },
+        {
+          "GeoObject": {
+            "metaDataProperty": {
+              "GeocoderMetaData": {
+                "precision": "other",
+                "text": "Россия, Алтайский край, Барнаул, Индустриальный район",
+                "kind": "district",
+                "Address": {
+                  "country_code": "RU",
+                  "formatted": "Россия, Алтайский край, Барнаул, Индустриальный район",
+                  "Components": [
+                    { "kind": "country", "name": "Россия" },
+                    {
+                      "kind": "province",
+                      "name": "Сибирский федеральный округ"
+                    },
+                    { "kind": "province", "name": "Алтайский край" },
+                    {
+                      "kind": "area",
+                      "name": "муниципальное образование Барнаул"
+                    },
+                    { "kind": "locality", "name": "Барнаул" },
+                    { "kind": "district", "name": "Индустриальный район" }
+                  ]
+                },
+                "AddressDetails": {
+                  "Country": {
+                    "AddressLine": "Россия, Алтайский край, Барнаул, Индустриальный район",
+                    "CountryNameCode": "RU",
+                    "CountryName": "Россия",
+                    "AdministrativeArea": {
+                      "AdministrativeAreaName": "Алтайский край",
+                      "SubAdministrativeArea": {
+                        "SubAdministrativeAreaName": "муниципальное образование Барнаул",
+                        "Locality": {
+                          "LocalityName": "Барнаул",
+                          "DependentLocality": {
+                            "DependentLocalityName": "Индустриальный район"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "name": "Индустриальный район",
+            "description": "Барнаул, Алтайский край, Россия",
+            "boundedBy": {
+              "Envelope": {
+                "lowerCorner": "83.533018 53.298506",
+                "upperCorner": "83.722185 53.381523"
+              }
+            },
+            "Point": { "pos": "83.671304 53.338979" }
+          }
+        }
+      ]
+    }
+  }
+}

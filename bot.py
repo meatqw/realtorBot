@@ -14,7 +14,7 @@ from aiogram.types import ParseMode
 import logging
 import aiogram.utils.markdown as md
 import datetime
-from ddata import get_data
+from yandex import get_data
 
 KEYS = ['key']
 OBJECTS = {}
@@ -37,6 +37,7 @@ class userForm(StatesGroup):
     job = State()
     key = State()
     region = State()
+    city = State()
 
 # form objectsForm
 
@@ -139,12 +140,36 @@ async def process_key(message: types.Message, state: FSMContext):
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['user']['enter_region'])
 
 
-@dp.message_handler(state=userForm.region)
-async def process_region(message: types.Message, state: FSMContext):
-    """REGION STATE"""
+@dp.message_handler(lambda message: len(message.text) < 0, state=userForm.region)
+async def process_user_region_invalid(message: types.Message):
+    return await message.reply(config.OBJECT_TEXT['user']['exc_region'])
 
+@dp.message_handler(lambda message: len(message.text) > 0, state=userForm.region)
+async def process_user_region(message: types.Message, state: FSMContext):
+    """USER REGION STATE"""
+    
     async with state.proxy() as data:
         data['region'] = message.text
+        
+    # start objects city state
+    await userForm.next()
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['user']['enter_city'])
+
+
+@dp.message_handler(lambda message: len(message.text) < 0, state=userForm.city)
+async def process_user_city_invalid(message: types.Message):
+    return await message.reply(config.OBJECT_TEXT['user']['exc_city'])
+
+@dp.message_handler(lambda message: len(message.text) > 0, state=userForm.city)
+async def process_city(message: types.Message, state: FSMContext):
+    """USER CITY STATE"""
+
+    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
+        
+    async with state.proxy() as data:
+        city = get_data(f"{data['region']}, {message.text}", "region_city")
+        data['city'] = city['city']
+        data['region'] = city['region']
 
         # save USER data in db
         user = Users(
@@ -155,11 +180,14 @@ async def process_region(message: types.Message, state: FSMContext):
             experience=data['experience'],
             job=data['job'],
             key=data['key'],
-            region=data['region'])
+            region=data['region'],
+            city=data['city'])
 
         db.session.add(user)
         db.session.commit()
-
+        
+        await msg.delete()
+        
         # send user data
         await bot.send_message(
             message.chat.id,
@@ -171,6 +199,7 @@ async def process_region(message: types.Message, state: FSMContext):
                 md.text('Место работы: ', md.bold(data['job'])),
                 md.text('Ключ: ', md.bold(data['key'])),
                 md.text('Регион: ', md.bold(data['region'])),
+                md.text('Город: ', md.bold(data['city'])),
                 sep='\n',
             ),
             parse_mode=ParseMode.MARKDOWN,
@@ -238,308 +267,308 @@ async def back_handler(message: types.Message,  state: FSMContext):
 # ----------------- SALE --------------------
 
 
-@dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['sale_btn']))
-async def function_sale(message: types.Message):
-    """FUNCTION SALE (SALE STATE)"""
+# @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['sale_btn']))
+# async def function_sale(message: types.Message):
+#     """FUNCTION SALE (SALE STATE)"""
 
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.add(config.OBJECT_TEXT['main']['cancel_btn'])
+#     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#     keyboard.add(config.OBJECT_TEXT['main']['cancel_btn'])
 
-    # start objects region state
-    await objectsForm.region.set()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['start_add'], reply_markup=keyboard)
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_region'])
+#     # start objects region state
+#     await objectsForm.region.set()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['start_add'], reply_markup=keyboard)
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_region'])
 
-@dp.message_handler(lambda message: not get_data(message.text)['status'], state=objectsForm.region)
-async def process_region_invalid(message: types.Message):
-    return await message.reply(config.OBJECT_TEXT['objects']['exc_region'])
+# @dp.message_handler(lambda message: len(message.text) < 0, state=objectsForm.region)
+# async def process_region_invalid(message: types.Message):
+#     return await message.reply(config.OBJECT_TEXT['objects']['exc_region'])
 
-@dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.region)
-async def process_objects_region(message: types.Message, state: FSMContext):
-    """OBJECTS REGION STATE"""
-    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
+# @dp.message_handler(lambda message: len(message.text) > 0, state=objectsForm.region)
+# async def process_objects_region(message: types.Message, state: FSMContext):
+#     """OBJECTS REGION STATE"""
+#     msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
     
-    async with state.proxy() as data:
-        region = get_data(message.text)['result']['region']
-        data['region'] = region
-        
-    await msg.delete()
-    # start objects city state
-    await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_city'])
-    
-@dp.message_handler(lambda message: not get_data(message.text)['status'], state=objectsForm.city)
-async def process_city_invalid(message: types.Message):
-    return await message.reply(config.OBJECT_TEXT['objects']['exc_city'])
-
-@dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.city)
-async def process_objects_city(message: types.Message, state: FSMContext):
-    """OBJECTS CITY STATE"""
-
-    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
-    
-    async with state.proxy() as data:
-        city = get_data(f"{data['region']} {message.text}")['result']['city']
-        data['city'] = city
-
-    await msg.delete()
-    # start objects address state
-    await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_area'])
-
-@dp.message_handler(lambda message: not get_data(message.text)['status'], state=objectsForm.area)
-async def process_area_invalid(message: types.Message):
-    return await message.reply(config.OBJECT_TEXT['objects']['exc_area'])
-
-@dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.area)
-async def process_objects_area(message: types.Message, state: FSMContext):
-    """OBJECTS AREA STATE"""
-    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
-    async with state.proxy() as data:
-        area = get_data(f"{data['region']} {data['city']} {message.text} р-н")['result']['city_district']
-        if area == None:
-            area = message.text
-        data['area'] = area
-
-    await msg.delete()
-    # start objects area state
-    await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_address'])
-
-@dp.message_handler(lambda message: not get_data(message.text)['status'], state=objectsForm.address)
-async def process_address_invalid(message: types.Message):
-    return await message.reply(config.OBJECT_TEXT['objects']['exc_address'])
-
-@dp.message_handler(lambda message: get_data(message.text)['status'], state=objectsForm.address)
-async def process_objects_address(message: types.Message, state: FSMContext):
-    """OBJECTS ADDRESS STATE"""
-
-    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
-    
-    async with state.proxy() as data:
-        address = get_data(f"{data['region']} {data['city']} {data['area']} {message.text}")['result']
-        data['address'] = address['street'] + ' д ' + address['house']
-        data['street'] = address['street']
-
-    await msg.delete()
-    # start objects street state
-    await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_rooms'])
-
-
-# @dp.message_handler(state=objectsForm.street)
-# async def process_objects_street(message: types.Message, state: FSMContext):
-#     """OBJECTS STREET STATE"""
-
 #     async with state.proxy() as data:
-#         data['street'] = message.text
+#         region = get_data(message.text)['result']['region']
+#         data['region'] = region
+        
+#     await msg.delete()
+#     # start objects city state
+#     await objectsForm.next()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_city'])
+    
+# @dp.message_handler(lambda message: len(message.text) < 0, state=objectsForm.city)
+# async def process_city_invalid(message: types.Message):
+#     return await message.reply(config.OBJECT_TEXT['objects']['exc_city'])
 
-#     # start objects rooms state
+# @dp.message_handler(lambda message: len(message.text) > 0, state=objectsForm.city)
+# async def process_objects_city(message: types.Message, state: FSMContext):
+#     """OBJECTS CITY STATE"""
+
+#     msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
+    
+#     async with state.proxy() as data:
+#         city = get_data(f"{data['region']} {message.text}")['result']['city']
+#         data['city'] = city
+
+#     await msg.delete()
+#     # start objects address state
+#     await objectsForm.next()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_area'])
+
+# @dp.message_handler(lambda message: len(message.text) < 0, state=objectsForm.area)
+# async def process_area_invalid(message: types.Message):
+#     return await message.reply(config.OBJECT_TEXT['objects']['exc_area'])
+
+# @dp.message_handler(lambda message: len(message.text) > 0, state=objectsForm.area)
+# async def process_objects_area(message: types.Message, state: FSMContext):
+#     """OBJECTS AREA STATE"""
+#     msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
+#     async with state.proxy() as data:
+#         area = get_data(f"{data['region']} {data['city']} {message.text} р-н")['result']['city_district']
+#         if area == None:
+#             area = message.text
+#         data['area'] = area
+
+#     await msg.delete()
+#     # start objects area state
+#     await objectsForm.next()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_address'])
+
+# @dp.message_handler(lambda message: len(message.text) < 0, state=objectsForm.address)
+# async def process_address_invalid(message: types.Message):
+#     return await message.reply(config.OBJECT_TEXT['objects']['exc_address'])
+
+# @dp.message_handler(lambda message: len(message.text) > 0, state=objectsForm.address)
+# async def process_objects_address(message: types.Message, state: FSMContext):
+#     """OBJECTS ADDRESS STATE"""
+
+#     msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['loading'])
+    
+#     async with state.proxy() as data:
+#         address = get_data(f"{data['region']} {data['city']} {data['area']} {message.text}")['result']
+#         data['address'] = address['street'] + ' д ' + address['house']
+#         data['street'] = address['street']
+
+#     await msg.delete()
+#     # start objects street state
 #     await objectsForm.next()
 #     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_rooms'])
 
 
-@dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.rooms)
-async def process_rooms_invalid(message: types.Message):
-    return await message.reply(config.OBJECT_TEXT['objects']['exc_rooms'])
+# # @dp.message_handler(state=objectsForm.street)
+# # async def process_objects_street(message: types.Message, state: FSMContext):
+# #     """OBJECTS STREET STATE"""
+
+# #     async with state.proxy() as data:
+# #         data['street'] = message.text
+
+# #     # start objects rooms state
+# #     await objectsForm.next()
+# #     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_rooms'])
 
 
-@dp.message_handler(lambda message: message.text.isdigit(), state=objectsForm.rooms)
-async def process_objects_rooms(message: types.Message, state: FSMContext):
-    """OBJECTS ROOMS STATE"""
-
-    async with state.proxy() as data:
-        data['rooms'] = message.text
-
-    # start objects stage state
-    await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_stage'])
+# @dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.rooms)
+# async def process_rooms_invalid(message: types.Message):
+#     return await message.reply(config.OBJECT_TEXT['objects']['exc_rooms'])
 
 
-@dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.stage)
-async def process_stage_invalid(message: types.Message):
-    return await message.reply(config.OBJECT_TEXT['objects']['exc_stage'])
+# @dp.message_handler(lambda message: message.text.isdigit(), state=objectsForm.rooms)
+# async def process_objects_rooms(message: types.Message, state: FSMContext):
+#     """OBJECTS ROOMS STATE"""
+
+#     async with state.proxy() as data:
+#         data['rooms'] = message.text
+
+#     # start objects stage state
+#     await objectsForm.next()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_stage'])
 
 
-@dp.message_handler(lambda message: message.text.isdigit(), state=objectsForm.stage)
-async def process_objects_stage(message: types.Message, state: FSMContext):
-    """OBJECTS STAGE STATE"""
-
-    async with state.proxy() as data:
-        data['stage'] = message.text
-
-    # start objects description state
-    await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_description'])
+# @dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.stage)
+# async def process_stage_invalid(message: types.Message):
+#     return await message.reply(config.OBJECT_TEXT['objects']['exc_stage'])
 
 
-@dp.message_handler(state=objectsForm.description)
-async def process_objects_description(message: types.Message, state: FSMContext):
-    """OBJECTS DESCRIPTION STATE"""
+# @dp.message_handler(lambda message: message.text.isdigit(), state=objectsForm.stage)
+# async def process_objects_stage(message: types.Message, state: FSMContext):
+#     """OBJECTS STAGE STATE"""
 
-    async with state.proxy() as data:
-        data['description'] = message.text
+#     async with state.proxy() as data:
+#         data['stage'] = message.text
 
-    # start objects price state
-    await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_price'])
-
-
-@dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.price)
-async def process_price_invalid(message: types.Message):
-    return await message.reply(config.OBJECT_TEXT['objects']['exc_price'])
+#     # start objects description state
+#     await objectsForm.next()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_description'])
 
 
-@dp.message_handler(lambda message: message.text.isdigit(), state=objectsForm.price)
-async def process_objects_price(message: types.Message, state: FSMContext):
-    """OBJECTS PRICE STATE"""
+# @dp.message_handler(state=objectsForm.description)
+# async def process_objects_description(message: types.Message, state: FSMContext):
+#     """OBJECTS DESCRIPTION STATE"""
 
-    async with state.proxy() as data:
-        data['price'] = message.text
+#     async with state.proxy() as data:
+#         data['description'] = message.text
 
-    # start objects quadrature state
-    await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_quadrature'])
-
-
-property_type_keyboard = types.InlineKeyboardMarkup(
-    resize_keyboard=True, selective=True)
-property_type_btn_1 = types.InlineKeyboardButton(
-    'Вторичка', callback_data='property_type_btn_1')
-property_type_btn_2 = types.InlineKeyboardButton(
-    'Первичка', callback_data='property_type_btn_2')
-property_type_btn_3 = types.InlineKeyboardButton(
-    'Новострой', callback_data='property_type_btn_3')
-property_type_keyboard.add(
-    property_type_btn_1, property_type_btn_2, property_type_btn_3)
-
-ownership_type_keyboard = types.InlineKeyboardMarkup(
-    resize_keyboard=True, selective=True)
-ownership_type_btn_1 = types.InlineKeyboardButton(
-    'Частная', callback_data='ownership_type_btn_1')
-ownership_type_btn_2 = types.InlineKeyboardButton(
-    'Государственная', callback_data='ownership_type_btn_2')
-ownership_type_keyboard.add(ownership_type_btn_1, ownership_type_btn_2)
+#     # start objects price state
+#     await objectsForm.next()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_price'])
 
 
-@dp.message_handler(lambda message: not message.text.replace(',', '.').replace('.', '').isdigit(), state=objectsForm.quadrature)
-async def process_quadrature_invalid(message: types.Message):
-    return await message.reply(config.OBJECT_TEXT['objects']['exc_quadrature'])
+# @dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.price)
+# async def process_price_invalid(message: types.Message):
+#     return await message.reply(config.OBJECT_TEXT['objects']['exc_price'])
 
 
-@dp.message_handler(lambda message: message.text.replace(',', '.').replace('.', '').isdigit(), state=objectsForm.quadrature)
-async def process_objects_quadrature(message: types.Message, state: FSMContext):
-    """OBJECTS QUADRATURE STATE"""
+# @dp.message_handler(lambda message: message.text.isdigit(), state=objectsForm.price)
+# async def process_objects_price(message: types.Message, state: FSMContext):
+#     """OBJECTS PRICE STATE"""
 
-    async with state.proxy() as data:
-        data['quadrature'] = message.text
+#     async with state.proxy() as data:
+#         data['price'] = message.text
 
-    # start objects property type state
-    await objectsForm.next()
-
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_property_type'], reply_markup=property_type_keyboard)
-
-
-@dp.callback_query_handler(Text(startswith="property_type_btn_"), state=objectsForm.property_type)
-async def callbacks_property_type(call: types.CallbackQuery, state: FSMContext):
-    """CALLBACK PROPERTY TYPE"""
-    action = call.data.split('_')[-1]
-
-    if action == "1":
-        p_type = 'Вторичка'
-    elif action == "2":
-        p_type = 'Первичка'
-    elif action == "3":
-        p_type = 'Новострой'
-
-    async with state.proxy() as data:
-        data['property_type'] = p_type
-
-    # start objects ownership type type state
-    await objectsForm.next()
-
-    await call.answer()
-
-    await bot.send_message(call.message.chat.id, p_type)
-    await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_ownership_type'], reply_markup=ownership_type_keyboard)
+#     # start objects quadrature state
+#     await objectsForm.next()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_quadrature'])
 
 
-@dp.callback_query_handler(Text(startswith="ownership_type_btn_"), state=objectsForm.ownership_type)
-async def callbacks_ownership_type(call: types.CallbackQuery, state: FSMContext):
-    """CALLBACK OWNERSHIP TYPE"""
-    action = call.data.split('_')[-1]
+# property_type_keyboard = types.InlineKeyboardMarkup(
+#     resize_keyboard=True, selective=True)
+# property_type_btn_1 = types.InlineKeyboardButton(
+#     'Вторичка', callback_data='property_type_btn_1')
+# property_type_btn_2 = types.InlineKeyboardButton(
+#     'Первичка', callback_data='property_type_btn_2')
+# property_type_btn_3 = types.InlineKeyboardButton(
+#     'Новострой', callback_data='property_type_btn_3')
+# property_type_keyboard.add(
+#     property_type_btn_1, property_type_btn_2, property_type_btn_3)
 
-    if action == "1":
-        o_type = 'Частная'
-    elif action == "2":
-        o_type = 'Государственная'
-
-    async with state.proxy() as data:
-        data['ownership_type'] = o_type
-
-    # start objects phone state
-    await objectsForm.next()
-
-    await call.answer()
-
-    await bot.send_message(call.message.chat.id, o_type)
-    await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_phone'])
+# ownership_type_keyboard = types.InlineKeyboardMarkup(
+#     resize_keyboard=True, selective=True)
+# ownership_type_btn_1 = types.InlineKeyboardButton(
+#     'Частная', callback_data='ownership_type_btn_1')
+# ownership_type_btn_2 = types.InlineKeyboardButton(
+#     'Государственная', callback_data='ownership_type_btn_2')
+# ownership_type_keyboard.add(ownership_type_btn_1, ownership_type_btn_2)
 
 
-@dp.message_handler(state=objectsForm.phone)
-async def process_objects_phone(message: types.Message, state: FSMContext):
-    """OBJECTS PHONE STATE AND SAVE STATE DATA IN DB OBJECTS"""
+# @dp.message_handler(lambda message: not message.text.replace(',', '.').replace('.', '').isdigit(), state=objectsForm.quadrature)
+# async def process_quadrature_invalid(message: types.Message):
+#     return await message.reply(config.OBJECT_TEXT['objects']['exc_quadrature'])
 
-    async with state.proxy() as data:
-        data['phone'] = message.text
 
-        # save Objects data in db
-        object = Objects(
-            user=str(message.chat.id),
-            region=data['region'],
-            city=data['city'],
-            area=data['area'],
-            address=data['address'],
-            street=data['street'],
-            rooms=data['rooms'],
-            stage=data['stage'],
-            description=data['description'],
-            price=data['price'],
-            quadrature=data['quadrature'],
-            property_type=data['property_type'],
-            ownership_type=data['ownership_type'],
-            phone=data['phone'])
+# @dp.message_handler(lambda message: message.text.replace(',', '.').replace('.', '').isdigit(), state=objectsForm.quadrature)
+# async def process_objects_quadrature(message: types.Message, state: FSMContext):
+#     """OBJECTS QUADRATURE STATE"""
 
-        db.session.add(object)
-        db.session.commit()
+#     async with state.proxy() as data:
+#         data['quadrature'] = message.text
 
-        # send object data
-        await bot.send_message(
-            message.chat.id,
-            md.text(
-                md.text(config.OBJECT_TEXT['objects']['finish_add']),
-                md.text('Регион: ', md.bold(data['region'])),
-                md.text('Город: ', md.bold(data['city'])),
-                md.text('Район: ', md.bold(data['area'])),
-                md.text('Адрес: ', md.bold(data['address'])),
-                md.text('Улица: ', md.bold(data['street'])),
-                md.text('Кол-во комнат: ', md.bold(data['rooms'])),
-                md.text('Этаж: ', md.bold(data['stage'])),
-                md.text('Описание: ', md.bold(data['description'])),
-                md.text('Цена: ', md.bold(data['price'] + ' р')),
-                md.text('Квадратура: ', md.bold(data['quadrature'] + ' м2')),
-                md.text('Тип недвижимости: ', md.bold(data['property_type'])),
-                md.text('Тип собственности: ', md.bold(
-                    data['ownership_type'])),
-                md.text('Телефон: ', md.bold(data['phone'])),
-                sep='\n',
-            ),
-            reply_markup=main_keyboard,
-            parse_mode=ParseMode.MARKDOWN,
-        )
+#     # start objects property type state
+#     await objectsForm.next()
 
-    # finish state
-    await state.finish()
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_property_type'], reply_markup=property_type_keyboard)
+
+
+# @dp.callback_query_handler(Text(startswith="property_type_btn_"), state=objectsForm.property_type)
+# async def callbacks_property_type(call: types.CallbackQuery, state: FSMContext):
+#     """CALLBACK PROPERTY TYPE"""
+#     action = call.data.split('_')[-1]
+
+#     if action == "1":
+#         p_type = 'Вторичка'
+#     elif action == "2":
+#         p_type = 'Первичка'
+#     elif action == "3":
+#         p_type = 'Новострой'
+
+#     async with state.proxy() as data:
+#         data['property_type'] = p_type
+
+#     # start objects ownership type type state
+#     await objectsForm.next()
+
+#     await call.answer()
+
+#     await bot.send_message(call.message.chat.id, p_type)
+#     await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_ownership_type'], reply_markup=ownership_type_keyboard)
+
+
+# @dp.callback_query_handler(Text(startswith="ownership_type_btn_"), state=objectsForm.ownership_type)
+# async def callbacks_ownership_type(call: types.CallbackQuery, state: FSMContext):
+#     """CALLBACK OWNERSHIP TYPE"""
+#     action = call.data.split('_')[-1]
+
+#     if action == "1":
+#         o_type = 'Частная'
+#     elif action == "2":
+#         o_type = 'Государственная'
+
+#     async with state.proxy() as data:
+#         data['ownership_type'] = o_type
+
+#     # start objects phone state
+#     await objectsForm.next()
+
+#     await call.answer()
+
+#     await bot.send_message(call.message.chat.id, o_type)
+#     await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_phone'])
+
+
+# @dp.message_handler(state=objectsForm.phone)
+# async def process_objects_phone(message: types.Message, state: FSMContext):
+#     """OBJECTS PHONE STATE AND SAVE STATE DATA IN DB OBJECTS"""
+
+#     async with state.proxy() as data:
+#         data['phone'] = message.text
+
+#         # save Objects data in db
+#         object = Objects(
+#             user=str(message.chat.id),
+#             region=data['region'],
+#             city=data['city'],
+#             area=data['area'],
+#             address=data['address'],
+#             street=data['street'],
+#             rooms=data['rooms'],
+#             stage=data['stage'],
+#             description=data['description'],
+#             price=data['price'],
+#             quadrature=data['quadrature'],
+#             property_type=data['property_type'],
+#             ownership_type=data['ownership_type'],
+#             phone=data['phone'])
+
+#         db.session.add(object)
+#         db.session.commit()
+
+#         # send object data
+#         await bot.send_message(
+#             message.chat.id,
+#             md.text(
+#                 md.text(config.OBJECT_TEXT['objects']['finish_add']),
+#                 md.text('Регион: ', md.bold(data['region'])),
+#                 md.text('Город: ', md.bold(data['city'])),
+#                 md.text('Район: ', md.bold(data['area'])),
+#                 md.text('Адрес: ', md.bold(data['address'])),
+#                 md.text('Улица: ', md.bold(data['street'])),
+#                 md.text('Кол-во комнат: ', md.bold(data['rooms'])),
+#                 md.text('Этаж: ', md.bold(data['stage'])),
+#                 md.text('Описание: ', md.bold(data['description'])),
+#                 md.text('Цена: ', md.bold(data['price'] + ' р')),
+#                 md.text('Квадратура: ', md.bold(data['quadrature'] + ' м2')),
+#                 md.text('Тип недвижимости: ', md.bold(data['property_type'])),
+#                 md.text('Тип собственности: ', md.bold(
+#                     data['ownership_type'])),
+#                 md.text('Телефон: ', md.bold(data['phone'])),
+#                 sep='\n',
+#             ),
+#             reply_markup=main_keyboard,
+#             parse_mode=ParseMode.MARKDOWN,
+#         )
+
+#     # finish state
+#     await state.finish()
 
 # ----------------- FEED --------------------
 
@@ -592,7 +621,9 @@ def render_filter_button(id):
         if 'city' in FILTER[id]:
             current_city = FILTER[id]['city']
         else:
-            current_city = None
+            
+            # user city
+            current_city = Users.query.filter_by(id=id).first().city
 
         if 'area' in FILTER[id]:
             current_area = FILTER[id]['area']
@@ -638,8 +669,24 @@ async def render_item(id, item):
     if 'current_item' in FILTER[id]:
         await FILTER[id]['current_item'].delete()
     
+    
+    city_keyboard = types.InlineKeyboardMarkup(
+        resize_keyboard=True, selective=True, row_width=1)
+    
+    objects = Objects.query.all()
+    all_city = set([i.city for i in objects])
+    all_city.sort()
+    
+    buttons = []
+    
     if item == 'city':
-        item = await bot.send_message(id, "Населенный пункт")
+        for i in all_city:
+            buttons.append(types.InlineKeyboardButton(f'{i}', callback_data=f'{i}'))
+        
+        city_keyboard.add(buttons)
+        
+        
+        item = await bot.send_message(id, "Населенный пункт", reply_markup=city_keyboard)
     elif item == 'area':
         item = await bot.send_message(id, "Район")
     elif item == 'rooms':

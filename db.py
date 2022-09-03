@@ -22,6 +22,7 @@ class Users(db.Model):
     experience = db.Column(db.String(400), nullable=True)
     job = db.Column(db.String(400), nullable=True)
     region = db.Column(db.String(400), nullable=True)
+    city = db.Column(db.String(400), nullable=True)
     key = db.Column(db.String(400), nullable=True)
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
