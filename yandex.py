@@ -1,9 +1,8 @@
 import requests
 from config import Y_TOKEN
 
-
 def get_data(source, method):
-
+    """VALIDATION ENTERED DATA"""
     geocode = source
 
     if method == 'region_city':
@@ -32,6 +31,3 @@ def get_data(source, method):
                 'city': result_address['SubAdministrativeArea']['Locality']['LocalityName'],
                 'street': result_address['SubAdministrativeArea']['Locality']['Thoroughfare']['ThoroughfareName'],
                 'house': result_address['SubAdministrativeArea']['Locality']['Thoroughfare']['Premise']['PremiseNumber']}
-
-
-print(get_data('Алтайский край, Барнаул, Индустриальный, Шумакова 45а', 'all_data'))

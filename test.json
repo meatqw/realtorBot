@@ -1,34 +1,23 @@
 {
-  "id": "7108767697858251293",
+  "message_id": 3541,
   "from": {
+    "id": 5760331339,
+    "is_bot": true,
+    "first_name": "testbot233",
+    "username": "testmainbotq233_bot"
+  },
+  "chat": {
     "id": 1655138958,
-    "is_bot": false,
     "first_name": "Олег",
     "username": "olegq6",
-    "language_code": "ru"
+    "type": "private"
   },
-  "message": {
-    "message_id": 3220,
-    "from": {
-      "id": 5760331339,
-      "is_bot": true,
-      "first_name": "testbot233",
-      "username": "testmainbotq233_bot"
-    },
-    "chat": {
-      "id": 1655138958,
-      "first_name": "Олег",
-      "username": "olegq6",
-      "type": "private"
-    },
-    "date": 1663031100,
-    "text": "Населенный пункт",
-    "reply_markup": {
-      "inline_keyboard": [
-        [{ "text": "Барнаул", "callback_data": "filter_btn_city" }]
-      ]
-    }
-  },
-  "chat_instance": "6876474878715540319",
-  "data": "filter_btn_city"
+  "date": 1663108580,
+  "text": "Населенный пункт",
+  "reply_markup": {
+    "inline_keyboard": [
+      [{ "text": "Барнаул", "callback_data": "filter_btn_city" }],
+      [{ "text": "Новосибирск", "callback_data": "filter_btn_city" }]
+    ]
+  }
 }
