@@ -20,6 +20,7 @@ from yandex import get_data
 KEYS = ['key']
 OBJECTS = {}
 FILTER = {}
+USER = {}
 
 logging.basicConfig(level=logging.INFO)
 
@@ -201,6 +202,7 @@ async def process_city(message: types.Message, state: FSMContext):
                 md.text('Ключ: ', md.bold(data['key'])),
                 md.text('Регион: ', md.bold(data['region'])),
                 md.text('Город: ', md.bold(data['city'])),
+                md.text(md.bold(config.OBJECT_TEXT['user']['finish_reg_text'])),
                 sep='\n',
             ),
             parse_mode=ParseMode.MARKDOWN,
@@ -212,12 +214,9 @@ async def process_city(message: types.Message, state: FSMContext):
 # CHECK AUTH USER
 
 # main keyboard
-buttons = [config.OBJECT_TEXT['main']['sale_btn'],
-           config.OBJECT_TEXT['main']['feed_btn'],
-           config.OBJECT_TEXT['main']['my_objects_btn'],
-           config.OBJECT_TEXT['main']['notification_btn']]
 main_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-main_keyboard.add(*buttons)
+main_keyboard.row(config.OBJECT_TEXT['main']['sale_btn'], config.OBJECT_TEXT['main']['feed_btn'])
+main_keyboard.row(config.OBJECT_TEXT['main']['my_objects_btn'], config.OBJECT_TEXT['main']['notification_btn'])
 
 
 @dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() != None
@@ -265,7 +264,8 @@ async def back_handler(message: types.Message,  state: FSMContext):
         return
 
     await state.finish()
-# ----------------- SALE --------------------
+    
+# ---------------------- SALE -----------------------
 
 
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['sale_btn']))
@@ -351,12 +351,24 @@ async def process_objects_address(message: types.Message, state: FSMContext):
 
         all_address_data = get_data(
             f"{data['region']}, {data['city']}, {data['area']} {message.text}", 'all_data')
-        data['address'] = all_address_data['street'] + \
-            ', ' + all_address_data['house']
-        data['area'] = all_address_data['area']
-        data['city'] = all_address_data['city']
-        data['region'] = all_address_data['region']
-        data['street'] = all_address_data['street']
+
+        
+        if all_address_data['street'] != None:
+            data['address'] = all_address_data['street'] + ', ' + all_address_data['house']
+            data['street'] = all_address_data['street']
+        else:
+            data['address'] = message.text
+            data['street'] = message.text
+            
+        if all_address_data['area'] != None:
+            data['area'] = all_address_data['area']
+            
+        if all_address_data['city'] != None:
+            data['city'] = all_address_data['city']
+            
+        if all_address_data['region'] != None:
+            data['region'] = all_address_data['region']
+            
 
     # start objects street state
     await objectsForm.next()
@@ -550,8 +562,8 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
                 md.text('Кол-во комнат: ', md.bold(data['rooms'])),
                 md.text('Этаж: ', md.bold(data['stage'])),
                 md.text('Описание: ', md.bold(data['description'])),
-                md.text('Цена: ', md.bold(data['price'] + ' р')),
-                md.text('Квадратура: ', md.bold(data['quadrature'] + ' м2')),
+                md.text('Цена: ', md.bold(data['price'] + ' ₽')),
+                md.text('Квадратура: ', md.bold(data['quadrature'] + ' м²')),
                 md.text('Тип недвижимости: ', md.bold(data['property_type'])),
                 md.text('Тип собственности: ', md.bold(
                     data['ownership_type'])),
@@ -565,7 +577,7 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
     # finish state
     await state.finish()
 
-# ----------------- FEED --------------------
+# -------------------- FEED -----------------------
 
 
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['feed_btn']))
@@ -583,9 +595,9 @@ async def function_feed(message: types.Message):
 
     filter_keyboard.add(*[
         types.InlineKeyboardButton(
-            f'Да', callback_data=f'filter_switch_yes'),
+            f'✅ Да', callback_data=f'filter_switch_yes'),
         types.InlineKeyboardButton(
-            f'Нет', callback_data=f'filter_switch_no')
+            f'❌ Нет', callback_data=f'filter_switch_no')
     ])
 
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['feed']['switch_filter'], reply_markup=filter_keyboard)
@@ -599,7 +611,7 @@ def render_all_feed(obj):
         resize_keyboard=True, selective=True, row_width=1)
     buttons = []
     for object in obj:
-        buttons.append(types.InlineKeyboardButton(f'{object.region}, {object.address}, {object.street}, {object.price}',
+        buttons.append(types.InlineKeyboardButton(f'{object.city}, {object.address}, {object.price}',
                                                   callback_data=f'object_feed_{object.id}'))
 
     feed_keyboard.add(*buttons)
@@ -910,7 +922,7 @@ def render_all_objects(id):
         resize_keyboard=True, selective=True, row_width=1)
     my_objects = Objects.query.filter_by(user=id).all()
     buttons = []
-    for object in my_objects:
+    for object in reversed(my_objects):
         buttons.append(types.InlineKeyboardButton(f'{object.city}, {object.address}, {object.price}',
                                                   callback_data=f'object_my_{object.id}'))
 
@@ -926,10 +938,14 @@ async def function_my_objects(message: types.Message):
     keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
 
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['main']['my_objects_btn'], reply_markup=keyboard)
+    
     objects_keyboard = render_all_objects(message.chat.id)
-
-    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['my_objects']['all'], reply_markup=objects_keyboard)
-    OBJECTS[message.chat.id] = {'object_list': msg}
+    
+    if len(objects_keyboard.inline_keyboard) > 0:
+        msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['my_objects']['all'], reply_markup=objects_keyboard)
+        OBJECTS[message.chat.id] = {'object_list': msg}
+    else:
+        msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['feed']['no_objects'], reply_markup=objects_keyboard)
 
 
 @dp.callback_query_handler(Text(startswith="object_"))
@@ -953,9 +969,9 @@ async def callbacks_my_object(call: types.CallbackQuery):
     # add buttons
     object_control_keyboard.add(*[
         types.InlineKeyboardButton(
-            f'Продлить', callback_data=f'extend_object_{object.id}'),
+            f'⏱ Продлить', callback_data=f'extend_object_{object.id}'),
         types.InlineKeyboardButton(
-            f'Удалить', callback_data=f'del_object_{object.id}')
+            f'🗑 Удалить', callback_data=f'del_object_{object.id}')
     ])
 
     text = md.text(
@@ -967,13 +983,13 @@ async def callbacks_my_object(call: types.CallbackQuery):
         md.text('Кол-во комнат: ', md.bold(object.rooms)),
         md.text('Этаж: ', md.bold(object.stage)),
         md.text('Описание: ', md.bold(object.description)),
-        md.text('Цена: ', md.bold(str(object.price) + ' р')),
+        md.text('Цена: ', md.bold(str(object.price) + ' ₽')),
         md.text('Квадратура: ', md.bold(
-                str(object.quadrature) + ' м2')),
+                str(object.quadrature) + ' м²')),
         md.text('Тип недвижимости: ', md.bold(object.property_type)),
         md.text('Тип собственности: ', md.bold(object.ownership_type)),
         md.text('Телефон: ', md.bold(object.phone)),
-        md.text('Дейтвительно до: ', md.bold(str(object.date_end))),
+        md.text('Дейтвительно до: ', md.bold((object.date_end.strftime("%m/%d/%Y, %H:%M:%S")))),
 
         sep='\n',
     )
