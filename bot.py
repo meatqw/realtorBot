@@ -1,8 +1,3 @@
-from audioop import add
-from distutils import extension
-from distutils.errors import DistutilsFileError
-from email.mime import message
-from platform import architecture
 from aiogram.utils import executor
 from aiogram.dispatcher.filters import Text
 from aiogram import Bot, Dispatcher, types, executor
@@ -351,11 +346,18 @@ async def process_objects_address(message: types.Message, state: FSMContext):
 
         all_address_data = get_data(
             f"{data['region']}, {data['city']}, {data['area']} {message.text}", 'all_data')
-
         
         if all_address_data['street'] != None:
-            data['address'] = all_address_data['street'] + ', ' + all_address_data['house']
-            data['street'] = all_address_data['street']
+            if all_address_data['house'] != None:
+                data['address'] = all_address_data['street'] + ', ' + all_address_data['house']
+                data['street'] = all_address_data['street']
+            else:
+                try:
+                    data['address'] = all_address_data['street'] + ', ' + message.text.split(' ')[-1]
+                    data['street'] = all_address_data['street']
+                except Exception as e:
+                    data['address'] = all_address_data['street']
+                    data['street'] = all_address_data['street']
         else:
             data['address'] = message.text
             data['street'] = message.text
