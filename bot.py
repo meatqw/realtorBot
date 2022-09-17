@@ -457,7 +457,7 @@ property_type_btn_2 = types.InlineKeyboardButton('Новострой', callback_
 property_type_btn_3 = types.InlineKeyboardButton('Дом', callback_data='property_type_btn_3')
 property_type_btn_4 = types.InlineKeyboardButton('Земля', callback_data='property_type_btn_4')
 property_type_keyboard.add(
-    property_type_btn_1, property_type_btn_2, property_type_btn_3, property_type_btn_3)
+    property_type_btn_1, property_type_btn_2, property_type_btn_3, property_type_btn_4)
 
 ownership_type_keyboard = types.InlineKeyboardMarkup(
     resize_keyboard=True, selective=True)
@@ -1089,7 +1089,7 @@ def render_all_objects(my_objects):
                     str(object.quadrature) + ' м²')),
             md.text('Тип недвижимости: ', md.bold(object.property_type)),
             md.text('Тип собственности: ', md.bold(object.ownership_type)),
-            md.text('Телефон: ', md.bold(object.phone)),
+            md.text('Телефон: ', f"`{object.phone}`"),
             md.text('Дейтвительно до: ', md.bold((object.date_end.strftime("%m/%d/%Y, %H:%M:%S")))),
 
             sep='\n',
