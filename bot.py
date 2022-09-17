@@ -16,6 +16,7 @@ KEYS = ['key']
 OBJECTS = {}
 FILTER = {}
 USER = {}
+UPDATE = {}
 
 logging.basicConfig(level=logging.INFO)
 
@@ -58,7 +59,12 @@ class objectsForm(StatesGroup):
 class UserData(StatesGroup):
     current_price = State()
 
+
+class updateData(StatesGroup):
+    data = State()
+
 # ########################### REGISTRATION ###########################
+
 
 @dp.message_handler(commands=['start'])
 async def process_start_command(message: types.Message):
@@ -197,7 +203,8 @@ async def process_city(message: types.Message, state: FSMContext):
                 md.text('Ключ: ', md.bold(data['key'])),
                 md.text('Регион: ', md.bold(data['region'])),
                 md.text('Город: ', md.bold(data['city'])),
-                md.text(md.bold(config.OBJECT_TEXT['user']['finish_reg_text'])),
+                md.text(
+                    md.bold(config.OBJECT_TEXT['user']['finish_reg_text'])),
                 sep='\n',
             ),
             parse_mode=ParseMode.MARKDOWN,
@@ -210,8 +217,10 @@ async def process_city(message: types.Message, state: FSMContext):
 
 # main keyboard
 main_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-main_keyboard.row(config.OBJECT_TEXT['main']['sale_btn'], config.OBJECT_TEXT['main']['feed_btn'])
-main_keyboard.row(config.OBJECT_TEXT['main']['my_objects_btn'], config.OBJECT_TEXT['main']['notification_btn'])
+main_keyboard.row(
+    config.OBJECT_TEXT['main']['sale_btn'], config.OBJECT_TEXT['main']['feed_btn'])
+main_keyboard.row(config.OBJECT_TEXT['main']['my_objects_btn'],
+                  config.OBJECT_TEXT['main']['notification_btn'])
 
 
 @dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() != None
@@ -259,7 +268,7 @@ async def back_handler(message: types.Message,  state: FSMContext):
         return
 
     await state.finish()
-    
+
 # ---------------------- SALE -----------------------
 
 
@@ -346,14 +355,16 @@ async def process_objects_address(message: types.Message, state: FSMContext):
 
         all_address_data = get_data(
             f"{data['region']}, {data['city']}, {data['area']} {message.text}", 'all_data')
-        
+
         if all_address_data['street'] != None:
             if all_address_data['house'] != None:
-                data['address'] = all_address_data['street'] + ', ' + all_address_data['house']
+                data['address'] = all_address_data['street'] + \
+                    ', ' + all_address_data['house']
                 data['street'] = all_address_data['street']
             else:
                 try:
-                    data['address'] = all_address_data['street'] + ', ' + message.text.split(' ')[-1]
+                    data['address'] = all_address_data['street'] + \
+                        ', ' + message.text.split(' ')[-1]
                     data['street'] = all_address_data['street']
                 except Exception as e:
                     data['address'] = all_address_data['street']
@@ -361,16 +372,15 @@ async def process_objects_address(message: types.Message, state: FSMContext):
         else:
             data['address'] = message.text
             data['street'] = message.text
-            
+
         if all_address_data['area'] != None:
             data['area'] = all_address_data['area']
-            
+
         if all_address_data['city'] != None:
             data['city'] = all_address_data['city']
-            
+
         if all_address_data['region'] != None:
             data['region'] = all_address_data['region']
-            
 
     # start objects street state
     await objectsForm.next()
@@ -442,14 +452,12 @@ async def process_objects_price(message: types.Message, state: FSMContext):
 
 property_type_keyboard = types.InlineKeyboardMarkup(
     resize_keyboard=True, selective=True)
-property_type_btn_1 = types.InlineKeyboardButton(
-    'Вторичка', callback_data='property_type_btn_1')
-property_type_btn_2 = types.InlineKeyboardButton(
-    'Первичка', callback_data='property_type_btn_2')
-property_type_btn_3 = types.InlineKeyboardButton(
-    'Новострой', callback_data='property_type_btn_3')
+property_type_btn_1 = types.InlineKeyboardButton('Вторичка', callback_data='property_type_btn_1')
+property_type_btn_2 = types.InlineKeyboardButton('Новострой', callback_data='property_type_btn_2')
+property_type_btn_3 = types.InlineKeyboardButton('Дом', callback_data='property_type_btn_3')
+property_type_btn_4 = types.InlineKeyboardButton('Земля', callback_data='property_type_btn_4')
 property_type_keyboard.add(
-    property_type_btn_1, property_type_btn_2, property_type_btn_3)
+    property_type_btn_1, property_type_btn_2, property_type_btn_3, property_type_btn_3)
 
 ownership_type_keyboard = types.InlineKeyboardMarkup(
     resize_keyboard=True, selective=True)
@@ -486,9 +494,11 @@ async def callbacks_property_type(call: types.CallbackQuery, state: FSMContext):
     if action == "1":
         p_type = 'Вторичка'
     elif action == "2":
-        p_type = 'Первичка'
-    elif action == "3":
         p_type = 'Новострой'
+    elif action == "3":
+        p_type = 'Дом'
+    elif action == "4":
+        p_type = 'Земля'
 
     async with state.proxy() as data:
         data['property_type'] = p_type
@@ -565,7 +575,7 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
                 md.text('Этаж: ', md.bold(data['stage'])),
                 md.text('Описание: ', md.bold(data['description'])),
                 md.text('Цена: ', md.bold(data['price'] + ' ₽')),
-                md.text('Квадратура: ', md.bold(data['quadrature'] + ' м²')),
+                md.text('Площадь: ', md.bold(data['quadrature'] + ' м²')),
                 md.text('Тип недвижимости: ', md.bold(data['property_type'])),
                 md.text('Тип собственности: ', md.bold(
                     data['ownership_type'])),
@@ -626,49 +636,63 @@ def render_filter_button(id):
         resize_keyboard=True, selective=True, row_width=1)
 
     if id in FILTER:
+        user = Users.query.filter_by(id=id).first()
+
+        if 'region' in FILTER[id]:
+            current_region = FILTER[id]['region']
+        else:
+            # user city
+            current_region = user.region
+
         if 'city' in FILTER[id]:
             current_city = FILTER[id]['city']
         else:
             # user city
-            current_city = Users.query.filter_by(id=id).first().city
+            current_city = user.city
 
         if 'area' in FILTER[id]:
             current_area = FILTER[id]['area']
         else:
-            current_area = None
+            current_area = 'Не выбрано'
 
         if 'rooms' in FILTER[id]:
             current_rooms = FILTER[id]['rooms']
         else:
-            current_rooms = None
+            current_rooms = 'Не выбрано'
 
         if 'price' in FILTER[id]:
-            
+
             try:
                 current_price = FILTER[id]['price']['text']
             except Exception as e:
-                current_price = None
+                current_price = 'Не выбрано'
         else:
-            current_price = None
-            
+            current_price = 'Не выбрано'
+
         if 'count' in FILTER[id]:
             current_count = len(get_result_objects(id))
         else:
-            current_count = len(Objects.query.filter_by(city=current_city).all())
+            current_count = len(
+                Objects.query.filter_by(city=current_city).all())
     else:
 
-        # default user city
-        current_city = Users.query.filter_by(id=id).first().city
-        current_area = None
-        current_rooms = None
-        current_price = None
+        # default user city and region
+
+        user = Users.query.filter_by(id=id).first()
+        current_region = user.region
+        current_city = user.city
+        current_area = 'Не выбрано'
+        current_rooms = 'Не выбрано'
+        current_price = 'Не выбрано'
         current_count = len(Objects.query.filter_by(city=current_city).all())
 
         FILTER[id] = {'city': current_city, 'area': current_area,
                       'rooms': current_rooms, 'price': current_price,
-                      'count': current_count}
+                      'count': current_count, 'region': current_region}
 
     buttons = [
+        types.InlineKeyboardButton(
+            f"{config.OBJECT_TEXT['feed']['region_btn']}: {current_region}", callback_data='filter_item_region'),
         types.InlineKeyboardButton(
             f"{config.OBJECT_TEXT['feed']['city_btn']}: {current_city}", callback_data='filter_item_city'),
         types.InlineKeyboardButton(
@@ -677,8 +701,10 @@ def render_filter_button(id):
             f"{config.OBJECT_TEXT['feed']['rooms_btn']}: {current_rooms}", callback_data='filter_item_rooms'),
         types.InlineKeyboardButton(
             f"{config.OBJECT_TEXT['feed']['price']}: {current_price}", callback_data='filter_item_price'),
-        types.InlineKeyboardButton(f"{config.OBJECT_TEXT['feed']['feed_ok_filter']} ({current_count})", callback_data='filter_item_ok'),
-        types.InlineKeyboardButton(f"{config.OBJECT_TEXT['feed']['clear']}", callback_data='filter_item_clear')
+        types.InlineKeyboardButton(
+            f"{config.OBJECT_TEXT['feed']['feed_ok_filter']} ({current_count})", callback_data='filter_item_ok'),
+        types.InlineKeyboardButton(
+            f"{config.OBJECT_TEXT['feed']['clear']}", callback_data='filter_item_clear')
     ]
 
     filter_items_keyboard.add(*buttons)
@@ -704,7 +730,19 @@ async def render_item(id, item):
     all_objects_rooms_filter_by_city = set(
         [i.rooms for i in objects if i.city == FILTER[id]['city']])
 
+    all_region = set([i.region for i in objects])
+
     buttons = []
+
+    # all refion
+    if item == 'region':
+        for i in all_region:
+            buttons.append(types.InlineKeyboardButton(
+                f'{i}', callback_data=f'filter_region_{i}'))
+
+        keyboard_items.add(*buttons)
+
+        msg = await bot.send_message(id, config.OBJECT_TEXT['feed']['region_btn'], reply_markup=keyboard_items)
 
     # all cities
     if item == 'city':
@@ -720,7 +758,8 @@ async def render_item(id, item):
     elif item == 'area':
 
         for i in all_areas_filter_by_city:
-            buttons.append(types.InlineKeyboardButton(f'{i}', callback_data=f'filter_area_{i}'))
+            buttons.append(types.InlineKeyboardButton(
+                f'{i}', callback_data=f'filter_area_{i}'))
 
         keyboard_items.add(*buttons)
 
@@ -729,44 +768,44 @@ async def render_item(id, item):
     elif item == 'rooms':
 
         for i in all_objects_rooms_filter_by_city:
-            buttons.append(types.InlineKeyboardButton(f'{i}', callback_data=f'filter_rooms_{i}'))
+            buttons.append(types.InlineKeyboardButton(
+                f'{i}', callback_data=f'filter_rooms_{i}'))
 
         keyboard_items.add(*buttons)
 
         msg = await bot.send_message(id, config.OBJECT_TEXT['feed']['rooms_btn'], reply_markup=keyboard_items)
 
     elif item == 'price':
-        
+
         msg = await bot.send_message(id, config.OBJECT_TEXT['feed']['enter_current_price'])
-        
+
         await UserData.current_price.set()
-        
+
         # data to delete
         FILTER[id]['trash'] = [msg]
-        
 
     FILTER[id]['current_item'] = msg
 
 
 @dp.message_handler(lambda message: '-' not in message.text, state=UserData.current_price)
 async def process_current_filter_price_invalid(message: types.Message):
-    
+
     item = await message.reply(config.OBJECT_TEXT['feed']['exc_current_price'])
-    
+
     # add in trash
     FILTER[message.chat.id]['trash'].append(item)
     FILTER[message.chat.id]['trash'].append(message)
-    
+
     return item
 
 
 @dp.message_handler(lambda message: '-' in message.text, state=UserData.current_price)
 async def process_current_filter_price(message: types.Message, state: FSMContext):
     """CURRENT FILTER PRICE PROCESS"""
-    
+
     # add in trash
     FILTER[message.chat.id]['trash'].append(message)
-    
+
     async with state.proxy() as data:
         data['current_price'] = message.text.replace(' ', '')
         FILTER[message.chat.id]['price'] = {'text': message.text.replace(' ', ''),
@@ -774,64 +813,95 @@ async def process_current_filter_price(message: types.Message, state: FSMContext
                                        'max': data['current_price'].split('-')[1]}
 
     # clear trash
-    for i in  FILTER[message.chat.id]['trash']:
+    for i in FILTER[message.chat.id]['trash']:
         await i.delete()
-    
+
     # delete current filter menu
     await FILTER[message.chat.id]['filter_menu'].delete()
-    
+
     filter_menu = await bot.send_message(message.chat.id, config.OBJECT_TEXT['feed']['filter'], reply_markup=render_filter_button(message.chat.id))
     FILTER[message.chat.id]['filter_menu'] = filter_menu
-    
-        
+
     # finish state
     await state.finish()
 
 
 def get_result_objects(id):
-     
+
+    filter_region = FILTER[id]['region']
     filter_city = FILTER[id]['city']
     filter_area = FILTER[id]['area']
     filter_price = FILTER[id]['price']
     filter_rooms = FILTER[id]['rooms']
-    
+
     res_objects = []
-    if filter_area != None and filter_rooms != None:
-        objects = Objects.query.filter_by(city=filter_city, area=filter_area, rooms=filter_rooms).all()
-    elif filter_area != None and filter_rooms == None:
-        objects = Objects.query.filter_by(city=filter_city, area=filter_area).all()
-    elif filter_area == None and filter_rooms != None:
-        objects = Objects.query.filter_by(city=filter_city, rooms=filter_rooms).all()
-    elif filter_area == None and filter_rooms == None:
-        objects = Objects.query.filter_by(city=filter_city).all()
-        
-    if filter_price != None:
+
+    # true true true
+    if filter_area != 'Не выбрано' and filter_rooms != 'Не выбрано' and filter_city != 'Не выбрано':
+        objects = Objects.query.filter_by(
+            region=filter_region, area=filter_area, rooms=filter_rooms, city=filter_city).all()
+
+    # true false false
+    elif filter_area != 'Не выбрано' and filter_rooms == 'Не выбрано' and filter_city == 'Не выбрано':
+        objects = Objects.query.filter_by(
+            region=filter_region, area=filter_area).all()
+
+    # false true false
+    elif filter_area == 'Не выбрано' and filter_rooms != 'Не выбрано' and filter_city == 'Не выбрано':
+        objects = Objects.query.filter_by(
+            region=filter_region, rooms=filter_rooms).all()
+
+    # false false true
+    elif filter_area == 'Не выбрано' and filter_rooms == 'Не выбрано' and filter_city != 'Не выбрано':
+        objects = Objects.query.filter_by(
+            region=filter_region, city=filter_city).all()
+
+    # true true false
+    elif filter_area != 'Не выбрано' and filter_rooms != 'Не выбрано' and filter_city == 'Не выбрано':
+        objects = Objects.query.filter_by(
+            region=filter_region, area=filter_area, rooms=filter_rooms).all()
+
+    # true false true
+    elif filter_area != 'Не выбрано' and filter_rooms == 'Не выбрано' and filter_city != 'Не выбрано':
+        objects = Objects.query.filter_by(
+            region=filter_region, area=filter_area, city=filter_city).all()
+
+    # false true true
+    elif filter_area == 'Не выбрано' and filter_rooms != 'Не выбрано' and filter_city != 'Не выбрано':
+        objects = Objects.query.filter_by(
+            region=filter_region, rooms=filter_rooms, city=filter_city).all()
+
+    # false false false
+    elif filter_area == 'Не выбрано' and filter_rooms == 'Не выбрано' and filter_city == 'Не выбрано':
+        objects = Objects.query.filter_by(region=filter_region).all()
+
+    if filter_price != 'Не выбрано':
         for i in objects:
             if int(filter_price['max']) >= int(i.price) >= int(filter_price['min']):
                 res_objects.append(i)
     else:
         res_objects = objects
-        
+
     return res_objects
 
 
 @dp.callback_query_handler(Text(startswith="filter_"))
 async def callback_filter(call: types.CallbackQuery):
     """CALLBACK FILTER"""
-   
+
     action = call.data.split('_')[-1]
     func_action = call.data.split('_')[-2]
-    
-    
+
     try:
         await OBJECTS[call.message.chat.id]['current_object'].delete()
     except Exception as e:
         pass
 
     try:
-        await FILTER[call.message.chat.id]['objects_btn'].delete()
+        for i in FILTER[call.message.chat.id]['objects']:
+            await i.delete()
     except Exception as e:
-        pass
+            print(e)
 
     # switch yes/no
     if func_action == 'switch':
@@ -840,16 +910,26 @@ async def callback_filter(call: types.CallbackQuery):
             FILTER[call.message.chat.id]['filter_menu'] = filter_menu
         elif action == 'no':
             # get objects without filter
-            await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['feed']['objects_without_filter'], reply_markup=render_all_feed(Objects.query.all()))
+            object = Objects.query.all()
+            
+            for i in render_all_objects(object):
+                await bot.send_message(call.message.chat.id, i[0], parse_mode=ParseMode.MARKDOWN)
 
     # filter items
     elif func_action == 'item':
     
-        if action == 'city':
+        if action == 'region':
+            
+            await render_item(call.message.chat.id, 'region')
+            
+        elif action == 'city':
+            
             await render_item(call.message.chat.id, 'city')
+            
         elif action == 'area':
             
             await render_item(call.message.chat.id, 'area')
+            
         elif action == 'rooms':
             
             await render_item(call.message.chat.id, 'rooms')
@@ -861,18 +941,35 @@ async def callback_filter(call: types.CallbackQuery):
             res_objects = get_result_objects(call.message.chat.id)
             if len(res_objects) > 0:
                 # render objects 
-                objects_btn = await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['feed']['objects_with_filter'], reply_markup=render_all_feed(res_objects))
-                FILTER[call.message.chat.id]['objects_btn'] = objects_btn
+                # objects_btn = await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['feed']['objects_with_filter'], reply_markup=render_all_feed(res_objects))
+                FILTER[call.message.chat.id]['objects'] = []
+                for i in render_all_objects(res_objects):
+                    msg = await bot.send_message(call.message.chat.id, i[0], parse_mode=ParseMode.MARKDOWN)
+                    
+                    FILTER[call.message.chat.id]['objects'].append(msg)
             else:
                 objects_btn = await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['feed']['no_objects'])
                 FILTER[call.message.chat.id]['objects_btn'] = objects_btn 
                 
         # clear filter
         elif action == 'clear':
-            FILTER[call.message.chat.id]['area'] = None 
-            FILTER[call.message.chat.id]['rooms'] = None 
-            FILTER[call.message.chat.id]['price'] = None 
-            FILTER[call.message.chat.id]['city'] = Users.query.filter_by(id=call.message.chat.id).first().city
+            FILTER[call.message.chat.id]['region'] = 'Не выбрано' 
+            FILTER[call.message.chat.id]['area'] = 'Не выбрано' 
+            FILTER[call.message.chat.id]['rooms'] = 'Не выбрано' 
+            FILTER[call.message.chat.id]['price'] = 'Не выбрано' 
+            FILTER[call.message.chat.id]['city'] = 'Не выбрано' 
+            
+            try:
+                # delete old filter menu
+                await FILTER[call.message.chat.id]['filter_menu'].delete()
+            except Exception as e:
+                print(e)
+            
+            try:
+                for i in FILTER[call.message.chat.id]['objects']:
+                    await i.delete()
+            except Exception as e:
+                print(e)
             
             try:
                 # delete buttons
@@ -880,11 +977,7 @@ async def callback_filter(call: types.CallbackQuery):
             except Exception as e:
                 print(e)
                 
-            try:
-                # delete old filter menu
-                await FILTER[call.message.chat.id]['filter_menu'].delete()
-            except Exception as e:
-                print(e)
+            
                 
             filter_menu = await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['feed']['filter'], reply_markup=render_filter_button(call.message.chat.id))
             
@@ -892,12 +985,25 @@ async def callback_filter(call: types.CallbackQuery):
             
     else:
         # if the city is changes, area and rooms is cleared
+        
         if func_action == 'city':
-            FILTER[call.message.chat.id]['area'] = None 
-            FILTER[call.message.chat.id]['rooms'] = None 
-            FILTER[call.message.chat.id]['price'] = None 
+            FILTER[call.message.chat.id]['area'] = 'Не выбрано' 
+            FILTER[call.message.chat.id]['rooms'] = 'Не выбрано' 
+            FILTER[call.message.chat.id]['price'] = 'Не выбрано'
+        elif func_action == 'region':
+            FILTER[call.message.chat.id]['area'] = 'Не выбрано' 
+            FILTER[call.message.chat.id]['rooms'] = 'Не выбрано' 
+            FILTER[call.message.chat.id]['price'] = 'Не выбрано'
+            FILTER[call.message.chat.id]['city'] = 'Не выбрано'
+            
             
         FILTER[call.message.chat.id][func_action] = action
+        
+        try:
+            for i in FILTER[call.message.chat.id]['objects']:
+                await i.delete()
+        except Exception as e:
+                print(e)
         
         try:
             # delete buttons
@@ -918,102 +1024,134 @@ async def callback_filter(call: types.CallbackQuery):
 
 # -------------------- MY OBJECTS ------------------------
 
-def render_all_objects(id):
+############################## BUTTONS METHOD ###################################
+# def render_all_objects(id):
+#     """RENDER ALL MY OBJECTS"""
+#     objects_keyboard = types.InlineKeyboardMarkup(
+#         resize_keyboard=True, selective=True, row_width=1)
+#     my_objects = Objects.query.filter_by(user=id).all()
+#     buttons = []
+#     for object in reversed(my_objects):
+#         buttons.append(types.InlineKeyboardButton(f'{object.city}, {object.address}, {object.price}',
+#                                                   callback_data=f'object_my_{object.id}'))
+
+#     objects_keyboard.add(*buttons)
+#     return objects_keyboard
+
+# @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['my_objects_btn']))
+# async def function_my_objects(message: types.Message):
+#     """FUNCTION MY OBJECTS"""
+
+#     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+#     keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
+
+#     await bot.send_message(message.chat.id, config.OBJECT_TEXT['main']['my_objects_btn'], reply_markup=keyboard)
+    
+#     objects_keyboard = render_all_objects(message.chat.id)
+    
+#     if len(objects_keyboard.inline_keyboard) > 0:
+#         msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['my_objects']['all'], reply_markup=objects_keyboard)
+#         OBJECTS[message.chat.id] = {'object_list': msg}
+#     else:
+#         msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['feed']['no_objects'], reply_markup=objects_keyboard)
+##############################################################################
+
+def render_all_objects(my_objects):
     """RENDER ALL MY OBJECTS"""
-    objects_keyboard = types.InlineKeyboardMarkup(
-        resize_keyboard=True, selective=True, row_width=1)
-    my_objects = Objects.query.filter_by(user=id).all()
-    buttons = []
+    
+    objects = []
     for object in reversed(my_objects):
-        buttons.append(types.InlineKeyboardButton(f'{object.city}, {object.address}, {object.price}',
-                                                  callback_data=f'object_my_{object.id}'))
+        
+        object_control_keyboard = types.InlineKeyboardMarkup(
+        resize_keyboard=True, selective=True)
+    
+        object_control_keyboard.add(*[
+            types.InlineKeyboardButton(
+                f'⏱ Продлить', callback_data=f'extend_object_{object.id}'),
+            types.InlineKeyboardButton(
+                f'🔄 Изменить', callback_data=f'update_object_{object.id}'),
+            types.InlineKeyboardButton(
+                f'🗑 Удалить', callback_data=f'del_object_{object.id}')
+            
+        ])
 
-    objects_keyboard.add(*buttons)
-    return objects_keyboard
+        text = md.text(
+            md.text('Регион: ', md.bold(object.region)),
+            md.text('Город: ', md.bold(object.city)),
+            md.text('Район: ', md.bold(object.area)),
+            md.text('Адрес: ', md.bold(object.address)),
+            md.text('Улица: ', md.bold(object.street)),
+            md.text('Кол-во комнат: ', md.bold(object.rooms)),
+            md.text('Этаж: ', md.bold(object.stage)),
+            md.text('Описание: ', md.bold(object.description)),
+            md.text('Цена: ', md.bold(str(object.price) + ' ₽')),
+            md.text('Площадь: ', md.bold(
+                    str(object.quadrature) + ' м²')),
+            md.text('Тип недвижимости: ', md.bold(object.property_type)),
+            md.text('Тип собственности: ', md.bold(object.ownership_type)),
+            md.text('Телефон: ', md.bold(object.phone)),
+            md.text('Дейтвительно до: ', md.bold((object.date_end.strftime("%m/%d/%Y, %H:%M:%S")))),
 
+            sep='\n',
+        )
+        
+        objects.append([text, object_control_keyboard])
+    
+    return objects
+        
 
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['my_objects_btn']))
 async def function_my_objects(message: types.Message):
     """FUNCTION MY OBJECTS"""
-
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
-
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['main']['my_objects_btn'], reply_markup=keyboard)
+    id = message.chat.id
+    object = Objects.query.filter_by(user=id).all()
     
-    objects_keyboard = render_all_objects(message.chat.id)
+    OBJECTS[id] = {'msg': []}
+    for i in render_all_objects(object):
+        msg = await bot.send_message(id, i[0], reply_markup=i[1], parse_mode=ParseMode.MARKDOWN)
+        OBJECTS[id]['msg'].append(msg)
+
+# def render_my_object_info(object):
+#     # add buttons
     
-    if len(objects_keyboard.inline_keyboard) > 0:
-        msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['my_objects']['all'], reply_markup=objects_keyboard)
-        OBJECTS[message.chat.id] = {'object_list': msg}
-    else:
-        msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['feed']['no_objects'], reply_markup=objects_keyboard)
+    
+    
+# @dp.callback_query_handler(Text(startswith="object_"))
+# async def callbacks_my_object(call: types.CallbackQuery):
+#     """CALLBACK MY OBJECT/FEED"""
+#     action = call.data.split('_')[-1]
+#     func_action = call.data.split('_')[-2]
+
+#     # get data from db MY OBJECTS/FEED
+#     object = Objects.query.filter_by(id=int(action)).first()
+
+#     object_control_keyboard, text = render_my_object_info(object)
+
+#     if 'current_object' in OBJECTS[call.message.chat.id]:
+#         try:
+#             await OBJECTS[call.message.chat.id]['current_object'].delete()
+#         except Exception as e:
+#             print(e)
 
 
-@dp.callback_query_handler(Text(startswith="object_"))
-async def callbacks_my_object(call: types.CallbackQuery):
-    """CALLBACK MY OBJECT/FEED"""
-    action = call.data.split('_')[-1]
-    func_action = call.data.split('_')[-2]
+#     if func_action == 'my':
+#         # send object data (MY OBJECTS)
+#         message_object_id = await bot.send_message(
+#             call.message.chat.id,
+#             text,
+#             reply_markup=object_control_keyboard,
+#             parse_mode=ParseMode.MARKDOWN,
+#         )
+#     else:
+#         # send object data FEED
+#         message_object_id = await bot.send_message(
+#             call.message.chat.id,
+#             text,
+#             parse_mode=ParseMode.MARKDOWN,
+#         )
 
-    # get data from db MY OBJECTS/FEED
-    object = Objects.query.filter_by(id=int(action)).first()
-
-    object_control_keyboard = types.InlineKeyboardMarkup(
-        resize_keyboard=True, selective=True)
-
-    if 'current_object' in OBJECTS[call.message.chat.id]:
-        try:
-            await OBJECTS[call.message.chat.id]['current_object'].delete()
-        except Exception as e:
-            print(e)
-
-    # add buttons
-    object_control_keyboard.add(*[
-        types.InlineKeyboardButton(
-            f'⏱ Продлить', callback_data=f'extend_object_{object.id}'),
-        types.InlineKeyboardButton(
-            f'🗑 Удалить', callback_data=f'del_object_{object.id}')
-    ])
-
-    text = md.text(
-        md.text('Регион: ', md.bold(object.region)),
-        md.text('Город: ', md.bold(object.city)),
-        md.text('Район: ', md.bold(object.area)),
-        md.text('Адрес: ', md.bold(object.address)),
-        md.text('Улица: ', md.bold(object.street)),
-        md.text('Кол-во комнат: ', md.bold(object.rooms)),
-        md.text('Этаж: ', md.bold(object.stage)),
-        md.text('Описание: ', md.bold(object.description)),
-        md.text('Цена: ', md.bold(str(object.price) + ' ₽')),
-        md.text('Квадратура: ', md.bold(
-                str(object.quadrature) + ' м²')),
-        md.text('Тип недвижимости: ', md.bold(object.property_type)),
-        md.text('Тип собственности: ', md.bold(object.ownership_type)),
-        md.text('Телефон: ', md.bold(object.phone)),
-        md.text('Дейтвительно до: ', md.bold((object.date_end.strftime("%m/%d/%Y, %H:%M:%S")))),
-
-        sep='\n',
-    )
-
-    if func_action == 'my':
-        # send object data (MY OBJECTS)
-        message_object_id = await bot.send_message(
-            call.message.chat.id,
-            text,
-            reply_markup=object_control_keyboard,
-            parse_mode=ParseMode.MARKDOWN,
-        )
-    else:
-        # send object data FEED
-        message_object_id = await bot.send_message(
-            call.message.chat.id,
-            text,
-            parse_mode=ParseMode.MARKDOWN,
-        )
-
-    # save current object
-    OBJECTS[call.message.chat.id]['current_object'] = message_object_id
+#     # save current object
+#     OBJECTS[call.message.chat.id]['current_object'] = message_object_id
 
 
 @dp.callback_query_handler(Text(startswith="del_object_"))
@@ -1021,11 +1159,10 @@ async def callback_delete_my_object(call: types.CallbackQuery):
     """CALLBACK DELETE OBJECT"""
     action = call.data.split('_')[-1]
 
-    if 'current_object' in OBJECTS[call.message.chat.id]:
-        try:
-            await OBJECTS[call.message.chat.id]['current_object'].delete()
-        except Exception as e:
-            pass
+    try:
+        await OBJECTS[call.message.chat.id]['current_object'].delete()
+    except Exception as e:
+        pass
 
     # del rec DB
     Objects.query.filter_by(id=int(action)).delete()
@@ -1033,13 +1170,17 @@ async def callback_delete_my_object(call: types.CallbackQuery):
 
     # rerender my object form
     try:
+        for i in OBJECTS[call.message.chat.id]['msg']:
+            await i.delete()
         await OBJECTS[call.message.chat.id]['object_list'].delete()
     except Exception as e:
         pass
     
-    objects_keyboard = render_all_objects(call.message.chat.id)
+    object = Objects.query.filter_by(user=call.message.chat.id).all()
+    objects = render_all_objects(object)
 
-    msg = await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['my_objects']['all'], reply_markup=objects_keyboard)
+    for i in objects:
+        msg = await bot.send_message(call.message.chat.id, i[0], reply_markup=i[1], parse_mode=ParseMode.MARKDOWN)
 
     # save current object list
     OBJECTS[call.message.chat.id] = {'object_list': msg}
@@ -1050,11 +1191,10 @@ async def callback_extend_my_object(call: types.CallbackQuery):
     """CALLBACK EXTEND OBJECT"""
     action = call.data.split('_')[-1]
 
-    if 'current_object' in OBJECTS[call.message.chat.id]:
-        try:
-            await OBJECTS[call.message.chat.id]['current_object'].delete()
-        except Exception as e:
-            pass
+    try:
+        await OBJECTS[call.message.chat.id]['current_object'].delete()
+    except Exception as e:
+        pass
 
     # update rec DB
     object = Objects.query.filter_by(id=int(action)).first()
@@ -1065,6 +1205,98 @@ async def callback_extend_my_object(call: types.CallbackQuery):
         del OBJECTS[call.message.chat.id]['current_object']
     except Exception as e:
         pass
+
+@dp.callback_query_handler(Text(startswith="update_object_"))
+async def callback_update_my_object(call: types.CallbackQuery):
+    """CALLBACK UPDATE OBJECT"""
+    id = call.data.split('_')[-1]
+    
+    # update menu
+    update_keyboard = types.InlineKeyboardMarkup(
+        resize_keyboard=True, selective=True)
+
+    update_keyboard.add(*[
+        types.InlineKeyboardButton(
+            f'Регион', callback_data=f'update_region_{id}'),
+        types.InlineKeyboardButton(
+            f'Город', callback_data=f'update_city_{id}'),
+        types.InlineKeyboardButton(
+            f'Район', callback_data=f'update_area_{id}'),
+        types.InlineKeyboardButton(
+            f'Адрес', callback_data=f'update_address_{id}'),
+        types.InlineKeyboardButton(
+            f'Кол-во комнат', callback_data=f'update_rooms_{id}'),
+        types.InlineKeyboardButton(
+            f'Этаж', callback_data=f'update_stage_{id}'),
+        types.InlineKeyboardButton(
+            f'Описание', callback_data=f'update_description_{id}'),
+        types.InlineKeyboardButton(
+            f'Площадь', callback_data=f'update_quadrature_{id}'),
+        types.InlineKeyboardButton(
+            f'Тип недвижимости', callback_data=f'update_property_type_{id}'),
+        types.InlineKeyboardButton(
+            f'Тип собственности', callback_data=f'update_ownership_type_{id}'),
+        types.InlineKeyboardButton(
+            f'Телефон', callback_data=f'update_phone_{id}'),
+        types.InlineKeyboardButton(
+            f'Цена', callback_data=f'update_price_{id}'),
+        types.InlineKeyboardButton(
+            f'Отмена', callback_data=f'update_cancel_{id}'),
+    ])
+
+    msg = await bot.send_message(call.message.chat.id, "Выберите пункт для обновления", reply_markup=update_keyboard)
+    UPDATE[call.message.chat.id] = {'trash': msg}
+    
+@dp.callback_query_handler(Text(startswith="update_"))
+async def callbacks_update(call: types.CallbackQuery):
+    """CALLBACK UPDATE"""
+    id = call.data.split('_')[-1]
+    action = call.data.split('update_')[1].replace(f'_{id}', '')
+    UPDATE[call.message.chat.id]['update'] = {'action': action, 'id': id}
+    
+    await bot.send_message(call.message.chat.id, "Введите новое значение")
+    await updateData.data.set()
+
+@dp.message_handler(state=updateData.data)
+async def process_update(message: types.Message, state: FSMContext):
+    """UPDATE PROCESS"""
+    
+    try:
+        await OBJECTS[message.chat.id]['current_object'].delete()
+    except Exception as e:
+        print(e)
+    
+    try:
+        await UPDATE[message.chat.id]['trash'].delete()
+    except Exception as e:
+        print(e)
+    
+    async with state.proxy() as data: 
+        # update data in db
+        
+        action = UPDATE[message.chat.id]['update']['action']
+        id = UPDATE[message.chat.id]['update']['id']
+        # SQL
+        db.engine.execute(f"UPDATE objects SET {action}={message.text} WHERE id={id};")
+        db.session.commit()
+
+
+    # finish state
+    await state.finish()
+    
+    # reload object info
+    object = Objects.query.filter_by(id=UPDATE[message.chat.id]['update']['id']).all()
+    text, object_control_keyboard  = render_all_objects(object)[0]
+    
+    message_object_id = await bot.send_message(
+            message.chat.id,
+            text,
+            reply_markup=object_control_keyboard,
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    # save current object
+    
+    OBJECTS[message.chat.id]['current_object'] = message_object_id
 
 
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['main']['notification_btn']))
