@@ -24,6 +24,8 @@ class Users(db.Model):
     region = db.Column(db.String(400), nullable=True)
     city = db.Column(db.String(400), nullable=True)
     key = db.Column(db.String(400), nullable=True)
+    notification = db.Column(db.JSON, nullable=True)
+    # json structure {'status': (yes, no), 'filter': {}}
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
 # DB model Objects
@@ -52,6 +54,7 @@ class AccessKeys(db.Model):
     key = db.Column(db.String(400), nullable=True)
     user = db.Column(db.String(200), db.ForeignKey('users.id'), nullable=True)
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
+
 
 if __name__ == '__main__':
     db.create_all()

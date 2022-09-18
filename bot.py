@@ -17,6 +17,8 @@ OBJECTS = {}
 FILTER = {}
 USER = {}
 UPDATE = {}
+SWITCH = {}
+NOTIFICATION = {}
 
 logging.basicConfig(level=logging.INFO)
 
@@ -58,7 +60,9 @@ class objectsForm(StatesGroup):
 # user data
 class UserData(StatesGroup):
     current_price = State()
-
+    
+class Notification(StatesGroup):
+    data = State()
 
 class updateData(StatesGroup):
     data = State()
@@ -184,7 +188,8 @@ async def process_city(message: types.Message, state: FSMContext):
             job=data['job'],
             key=data['key'],
             region=data['region'],
-            city=data['city'])
+            city=data['city'],
+            notification={'status': False, 'filter': None})
 
         db.session.add(user)
         db.session.commit()
@@ -224,7 +229,8 @@ main_keyboard.row(config.OBJECT_TEXT['main']['my_objects_btn'],
 
 
 @dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() != None
-                    and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']])
+                    and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']] and 
+                    message.text not in [config.OBJECT_TEXT['notification'][i] for i in config.OBJECT_TEXT['notification']])
 async def process_auth(message: types.Message):
     """USER AUTH"""
 
@@ -232,7 +238,8 @@ async def process_auth(message: types.Message):
 
 
 @dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() == None
-                    and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']])
+                    and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']] and 
+                    message.text not in [config.OBJECT_TEXT['notification'][i] for i in config.OBJECT_TEXT['notification']])
 async def process_not_auth(message: types.Message):
     """USER NOT AUTH"""
     markup = types.ReplyKeyboardRemove()
@@ -533,7 +540,6 @@ async def callbacks_ownership_type(call: types.CallbackQuery, state: FSMContext)
     await bot.send_message(call.message.chat.id, o_type)
     await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_phone'])
 
-
 @dp.message_handler(state=objectsForm.phone)
 async def process_objects_phone(message: types.Message, state: FSMContext):
     """OBJECTS PHONE STATE AND SAVE STATE DATA IN DB OBJECTS"""
@@ -560,17 +566,14 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
 
         db.session.add(object)
         db.session.commit()
-
-        # send object data
-        await bot.send_message(
-            message.chat.id,
-            md.text(
-                md.text(config.OBJECT_TEXT['objects']['finish_add']),
+        
+        
+        object_info = md.text(
                 md.text('Регион: ', md.bold(data['region'])),
                 md.text('Город: ', md.bold(data['city'])),
                 md.text('Район: ', md.bold(data['area'])),
                 md.text('Адрес: ', md.bold(data['address'])),
-                md.text('Улица: ', md.bold(data['street'])),
+                # md.text('Улица: ', md.bold(data['street'])),
                 md.text('Кол-во комнат: ', md.bold(data['rooms'])),
                 md.text('Этаж: ', md.bold(data['stage'])),
                 md.text('Описание: ', md.bold(data['description'])),
@@ -579,15 +582,34 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
                 md.text('Тип недвижимости: ', md.bold(data['property_type'])),
                 md.text('Тип собственности: ', md.bold(
                     data['ownership_type'])),
-                md.text('Телефон: ', md.bold(data['phone'])),
-                sep='\n',
-            ),
+                md.text('Телефон: ', f"`{data['phone']}`"),
+                sep='\n',)
+
+        await bot.send_message(message.chat.id, md.text(config.OBJECT_TEXT['objects']['finish_add']))
+        # send object data
+        await bot.send_message(
+            message.chat.id,
+            object_info,
             reply_markup=main_keyboard,
             parse_mode=ParseMode.MARKDOWN,
         )
 
     # finish state
     await state.finish()
+    
+    await notification_maling(message.chat.id, object_info)
+    
+async def notification_maling(id, object):
+    """MALING NOTIFICATION"""
+    users = Users.query.all()
+    
+    for user in users:
+        notification_user = user.notification
+        
+        # send info about new object
+        if int(user.id) != int(id):
+            if notification_user['status'] == True:
+                await bot.send_message(user.id, f"{config.OBJECT_TEXT['notification']['new_object']}\n\n{object}", parse_mode=ParseMode.MARKDOWN)
 
 # -------------------- FEED -----------------------
 
@@ -648,7 +670,7 @@ def render_filter_button(id):
             current_city = FILTER[id]['city']
         else:
             # user city
-            current_city = user.city
+            current_city = 'Не выбрано'
 
         if 'area' in FILTER[id]:
             current_area = FILTER[id]['area']
@@ -680,7 +702,7 @@ def render_filter_button(id):
 
         user = Users.query.filter_by(id=id).first()
         current_region = user.region
-        current_city = user.city
+        current_city = 'Не выбрано'
         current_area = 'Не выбрано'
         current_rooms = 'Не выбрано'
         current_price = 'Не выбрано'
@@ -700,14 +722,19 @@ def render_filter_button(id):
         types.InlineKeyboardButton(
             f"{config.OBJECT_TEXT['feed']['rooms_btn']}: {current_rooms}", callback_data='filter_item_rooms'),
         types.InlineKeyboardButton(
-            f"{config.OBJECT_TEXT['feed']['price']}: {current_price}", callback_data='filter_item_price'),
-        types.InlineKeyboardButton(
-            f"{config.OBJECT_TEXT['feed']['feed_ok_filter']} ({current_count})", callback_data='filter_item_ok'),
-        types.InlineKeyboardButton(
-            f"{config.OBJECT_TEXT['feed']['clear']}", callback_data='filter_item_clear')
+            f"{config.OBJECT_TEXT['feed']['price']}: {current_price}", callback_data='filter_item_price')
     ]
-
+    
     filter_items_keyboard.add(*buttons)
+    if SWITCH[id]['current'] == 'objects':
+        filter_items_keyboard.row(types.InlineKeyboardButton(
+            f"{config.OBJECT_TEXT['feed']['feed_ok_filter']} ({current_count})", callback_data='filter_item_ok'), 
+                                  types.InlineKeyboardButton(f"{config.OBJECT_TEXT['feed']['clear']}", callback_data='filter_item_clear'))
+        
+    else:
+        filter_items_keyboard.row(types.InlineKeyboardButton(f"{config.OBJECT_TEXT['notification']['filter_btn_ok']}", callback_data='filter_notification_ok'))
+    
+    
     return filter_items_keyboard
 
 
@@ -786,7 +813,6 @@ async def render_item(id, item):
 
     FILTER[id]['current_item'] = msg
 
-
 @dp.message_handler(lambda message: '-' not in message.text, state=UserData.current_price)
 async def process_current_filter_price_invalid(message: types.Message):
 
@@ -827,7 +853,7 @@ async def process_current_filter_price(message: types.Message, state: FSMContext
 
 
 def get_result_objects(id):
-
+    print(FILTER)
     filter_region = FILTER[id]['region']
     filter_city = FILTER[id]['city']
     filter_area = FILTER[id]['area']
@@ -884,6 +910,47 @@ def get_result_objects(id):
 
     return res_objects
 
+async def set_item_filter_notification(id, item):
+    """ENTER VALUE FOR NOTIFICATION FILTER"""
+    msg = await bot.send_message(id, config.OBJECT_TEXT['notification']['enter_value'])
+    
+    NOTIFICATION[id]['current_filter_item'] = item
+    NOTIFICATION[id]['current_filter_msg'] = msg
+    await Notification.data.set()
+    
+@dp.message_handler(lambda message: len(message.text) > 0, state=Notification.data)
+async def process_value_notification(message: types.Message, state: FSMContext):
+    """VALUE FOR NOTIFICATION PROCESS"""
+
+    async with state.proxy() as data:
+        item = NOTIFICATION[message.chat.id]['current_filter_item']
+        
+        if item == 'city':
+            valid_data = get_data(f'{FILTER[message.chat.id]["region"]}, {message.text}', 'region_city')
+            FILTER[message.chat.id][item] = valid_data['city']
+        else:
+            FILTER[message.chat.id][item] = message.text
+            
+        NOTIFICATION[message.chat.id]['user_msg'] = message
+
+    # finish state
+    await state.finish()
+    
+    # delete trash
+    await NOTIFICATION[message.chat.id]['user_msg'].delete()
+    await NOTIFICATION[message.chat.id]['current_filter_msg'].delete()
+    
+    try:
+        # delete old filter menu
+        await FILTER[message.chat.id]['filter_menu'].delete()
+    except Exception as e:
+        print(e)
+        
+    filter_menu = await bot.send_message(message.chat.id, config.OBJECT_TEXT['feed']['filter'], reply_markup=render_filter_button(message.chat.id))
+    
+    FILTER[message.chat.id]['filter_menu'] = filter_menu
+    
+    
 
 @dp.callback_query_handler(Text(startswith="filter_"))
 async def callback_filter(call: types.CallbackQuery):
@@ -906,8 +973,12 @@ async def callback_filter(call: types.CallbackQuery):
     # switch yes/no
     if func_action == 'switch':
         if action == 'yes':
+            # toggle filter application
+            SWITCH[call.message.chat.id] = {'current': 'objects'}
+            
             filter_menu = await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['feed']['filter'], reply_markup=render_filter_button(call.message.chat.id))
             FILTER[call.message.chat.id]['filter_menu'] = filter_menu
+            
         elif action == 'no':
             # get objects without filter
             object = Objects.query.all()
@@ -924,18 +995,32 @@ async def callback_filter(call: types.CallbackQuery):
             
         elif action == 'city':
             
-            await render_item(call.message.chat.id, 'city')
+            # FEED MODE
+            if SWITCH[call.message.chat.id]['current'] == 'objects':
+                await render_item(call.message.chat.id, 'city')
+            else:
+                await set_item_filter_notification(call.message.chat.id, 'city')
+            
             
         elif action == 'area':
             
-            await render_item(call.message.chat.id, 'area')
+            # FEED MODE
+            if SWITCH[call.message.chat.id]['current'] == 'objects':
+                await render_item(call.message.chat.id, 'area')
+            else:
+                await set_item_filter_notification(call.message.chat.id, 'area')
             
         elif action == 'rooms':
             
-            await render_item(call.message.chat.id, 'rooms')
+            # FEED MODE
+            if SWITCH[call.message.chat.id]['current'] == 'objects':
+                await render_item(call.message.chat.id, 'rooms')
+            else:
+                await set_item_filter_notification(call.message.chat.id, 'rooms')
+                
         elif action == 'price':
-            
             await render_item(call.message.chat.id, 'price')
+            
         elif action == 'ok':
            
             res_objects = get_result_objects(call.message.chat.id)
@@ -982,6 +1067,35 @@ async def callback_filter(call: types.CallbackQuery):
             filter_menu = await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['feed']['filter'], reply_markup=render_filter_button(call.message.chat.id))
             
             FILTER[call.message.chat.id]['filter_menu'] = filter_menu
+            
+    # notification filter OK
+    elif func_action == 'notification':
+        user = Users.query.filter_by(id=call.message.chat.id).first()
+        
+        try:
+            await FILTER[call.message.chat.id]['filter_menu'].delete()
+            del FILTER[call.message.chat.id]['filter_menu']
+        except Exception as e:
+            print(e)
+        
+        try:
+            for i in FILTER[call.message.chat.id]['objects']:
+                await i.delete()
+                del FILTER[call.message.chat.id]['objects']
+        except Exception as e:
+            print(e)
+        
+        try:
+            # delete buttons
+            await FILTER[call.message.chat.id]['current_item'].delete()
+            del FILTER[call.message.chat.id]['current_item']
+        except Exception as e:
+            print(e)
+        
+        user.notification = {'status': True, 'filter': FILTER[call.message.chat.id]}
+        db.session.commit()
+        
+        await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['notification']['filter_ok'])
             
     else:
         # if the city is changes, area and rooms is cleared
@@ -1080,7 +1194,7 @@ def render_all_objects(my_objects):
             md.text('Город: ', md.bold(object.city)),
             md.text('Район: ', md.bold(object.area)),
             md.text('Адрес: ', md.bold(object.address)),
-            md.text('Улица: ', md.bold(object.street)),
+            # md.text('Улица: ', md.bold(object.street)),
             md.text('Кол-во комнат: ', md.bold(object.rooms)),
             md.text('Этаж: ', md.bold(object.stage)),
             md.text('Описание: ', md.bold(object.description)),
@@ -1303,10 +1417,64 @@ async def process_update(message: types.Message, state: FSMContext):
 async def function_notifications(message: types.Message):
     """FUNCTION NOTIFICATIONS"""
 
+    
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(config.OBJECT_TEXT['notification']['yes'], config.OBJECT_TEXT['notification']['no'])
+    keyboard.add(config.OBJECT_TEXT['notification']['filter'], config.OBJECT_TEXT['notification']['all'])
     keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
+    
+    # printing current notification status
+    user_settings = Users.query.filter_by(id=message.chat.id).first()
+    status = user_settings.notification['status']
+    
+    if status == False:
+        status = '🔕'
+    elif status == True:
+        status = '🔔'
+    await bot.send_message(message.chat.id, f"{config.OBJECT_TEXT['notification']['settings']} ({status})", reply_markup=keyboard)
+    
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['notification']['yes'], ignore_case=True), state='*')
+async def notification_yes_handler(message: types.Message,  state: FSMContext):
+    """NOTIFICATON YES HANDLER"""
 
-    await message.reply(config.OBJECT_TEXT['main']['notification_btn'], reply_markup=keyboard)
+    user_settings = Users.query.filter_by(id=message.chat.id).first()
+    user_settings.notification = {'status': True, 'filter': None}
+    db.session.commit()
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['notification']['yes'], reply_markup=main_keyboard)
+
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['notification']['no'], ignore_case=True), state='*')
+async def notification_no_handler(message: types.Message,  state: FSMContext):
+    """NOTIFICATON NO HANDLER"""
+
+    user_settings = Users.query.filter_by(id=message.chat.id).first()
+    user_settings.notification = {'status': False, 'filter': None}
+    db.session.commit()
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['notification']['no'], reply_markup=main_keyboard)
+
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['notification']['all'], ignore_case=True), state='*')
+async def notification_all_handler(message: types.Message,  state: FSMContext):
+    """NOTIFICATON ALL HANDLER"""
+
+    user_settings = Users.query.filter_by(id=message.chat.id).first()
+    user_settings.notification = {'status': True, 'filter': None}
+    db.session.commit()
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['notification']['all'], reply_markup=main_keyboard)
+
+
+@dp.message_handler(Text(equals=config.OBJECT_TEXT['notification']['filter'], ignore_case=True), state='*')
+async def notification_filter_handler(message: types.Message,  state: FSMContext):
+    """NOTIFICATON FILTER HANDLER"""
+    
+    # toggle filter application
+    SWITCH[message.chat.id] = {'current': 'notification'}
+    # user_settings = Users.query.filter_by(id=message.chat.id).first()
+    
+    # user init in NOTIFICATION DICT
+    NOTIFICATION[message.chat.id] = {}
+    
+    
+    msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['notification']['filter'], reply_markup=render_filter_button(message.chat.id))
+    FILTER[message.chat.id]['filter_menu'] = msg
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)

@@ -1,23 +1,65 @@
 {
-  "message_id": 3541,
-  "from": {
-    "id": 5760331339,
-    "is_bot": true,
-    "first_name": "testbot233",
-    "username": "testmainbotq233_bot"
-  },
-  "chat": {
-    "id": 1655138958,
-    "first_name": "Олег",
-    "username": "olegq6",
-    "type": "private"
-  },
-  "date": 1663108580,
-  "text": "Населенный пункт",
-  "reply_markup": {
-    "inline_keyboard": [
-      [{ "text": "Барнаул", "callback_data": "filter_btn_city" }],
-      [{ "text": "Новосибирск", "callback_data": "filter_btn_city" }]
-    ]
+  5439436629: {'current': 'objects', 'filter_menu': {
+      "message_id": 6829,
+      "from": {
+        "id": 5760331339,
+        "is_bot": true,
+        "first_name": "testbot233",
+        "username": "testmainbotq233_bot"
+      },
+      "chat": {
+        "id": 5439436629,
+        "first_name": "Ron",
+        "last_name": "Swanson",
+        "username": "swansonr",
+        "type": "private"
+      },
+      "date": 1663490376,
+      "text": "Фильтр:",
+      "reply_markup": {
+        "inline_keyboard": [
+          [
+            {
+              "text": "Регион: Алтайский край",
+              "callback_data": "filter_item_region"
+            }
+          ],
+          [
+            {
+              "text": "Населенный пункт: Барнаул",
+              "callback_data": "filter_item_city"
+            }
+          ],
+          [
+            {
+              "text": "Район: Не выбрано",
+              "callback_data": "filter_item_area"
+            }
+          ],
+          [
+            {
+              "text": "Кол-во комнат: Не выбрано",
+              "callback_data": "filter_item_rooms"
+            }
+          ],
+          [
+            {
+              "text": "Цена: Не выбрано",
+              "callback_data": "filter_item_price"
+            }
+          ],
+          [
+            {
+              "text": "✅ Показать  (1)",
+              "callback_data": "filter_item_ok"
+            },
+            {
+              "text": "❌ Очистить",
+              "callback_data": "filter_item_clear"
+            }
+          ]
+        ]
+      }
+    }
   }
 }

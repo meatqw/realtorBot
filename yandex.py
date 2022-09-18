@@ -71,3 +71,4 @@ def get_data(source, method):
                 'city': city,
                 'street': street,
                 'house': house}
+
