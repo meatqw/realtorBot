@@ -567,6 +567,7 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
         db.session.add(object)
         db.session.commit()
         
+        print(object)
         
         object_info = md.text(
                 md.text('Регион: ', md.bold(data['region'])),
@@ -609,6 +610,8 @@ async def notification_maling(id, object):
         # send info about new object
         if int(user.id) != int(id):
             if notification_user['status'] == True:
+                
+                
                 await bot.send_message(user.id, f"{config.OBJECT_TEXT['notification']['new_object']}\n\n{object}", parse_mode=ParseMode.MARKDOWN)
 
 # -------------------- FEED -----------------------
@@ -618,6 +621,7 @@ async def notification_maling(id, object):
 async def function_feed(message: types.Message):
     """FUNCTION FEED"""
 
+    print(Users.query.all()[1].notification)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
 
