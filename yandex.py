@@ -13,6 +13,8 @@ def get_data(source, method):
         try:
             result = request.json()['response']['GeoObjectCollection']['featureMember'][0]['GeoObject'][
                 'metaDataProperty']['GeocoderMetaData']['AddressDetails']['Country']['AdministrativeArea']
+            # print(request.json())
+            
         except Exception as e:
             result = None
             
@@ -24,7 +26,10 @@ def get_data(source, method):
         try:
             city = result['SubAdministrativeArea']['Locality']['LocalityName']
         except Exception as e:
-            city = None
+            try:
+                city = result['Locality']['LocalityName']
+            except Exception as e:
+                city = None
             
         return {'region': region, 'city': city}
 
@@ -32,7 +37,7 @@ def get_data(source, method):
 
         request = requests.get(
             f'https://geocode-maps.yandex.ru/1.x/?format=json&apikey={Y_TOKEN}&geocode={geocode}')
-
+        
         try:
             result_address = request.json()['response']['GeoObjectCollection']['featureMember'][0]['GeoObject'][
                 'metaDataProperty']['GeocoderMetaData']['AddressDetails']['Country']['AdministrativeArea']
@@ -44,27 +49,47 @@ def get_data(source, method):
                 'metaDataProperty']['GeocoderMetaData']['AddressDetails']['Country']['AdministrativeArea']
             area = result_area['SubAdministrativeArea']['Locality']['DependentLocality']['DependentLocalityName']
         except Exception as e:
-            area = None
+            
+            try:
+                area = result_area['Locality']['DependentLocality']['DependentLocality']['DependentLocalityName']
+            except Exception as e:
+                try:
+                    area = result_area['Locality']['DependentLocality']['DependentLocalityName']
+                except Exception as e:
+                    area = None
+                
 
         try:
             region = result_address['AdministrativeAreaName']
         except Exception as e:
             region = None
 
+
         try:
             city = result_address['SubAdministrativeArea']['Locality']['LocalityName']
         except Exception as e:
-            city = None
+            
+            try:
+                city = result_address['Locality']['LocalityName']
+            except Exception as e:
+                city = None
 
         try:
             street = result_address['SubAdministrativeArea']['Locality']['Thoroughfare']['ThoroughfareName']
         except Exception as e:
-            street = None
+            
+            try:
+                street = result_address['Locality']['Thoroughfare']['ThoroughfareName']
+            except Exception as e:
+                steet = None
 
         try:
             house = result_address['SubAdministrativeArea']['Locality']['Thoroughfare']['Premise']['PremiseNumber']
         except Exception as e:
-            house = None
+            try:
+                house = result_address['Locality']['Thoroughfare']['Premise']['PremiseNumber']
+            except Exception as e:
+                house = None
 
         return {'area': area,
                 'region': region,
@@ -72,3 +97,4 @@ def get_data(source, method):
                 'street': street,
                 'house': house}
 
+# print(get_data('Москва, Таганский, Большой Факельный переулок, 24,', 'all_data'))
