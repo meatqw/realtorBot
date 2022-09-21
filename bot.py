@@ -179,11 +179,16 @@ async def process_city(message: types.Message, state: FSMContext):
         city = get_data(f"{data['region']}, {message.text}", "region_city")
         data['city'] = city['city']
         data['region'] = city['region']
+        
+        try:
+            login = message.chat.username
+        except Exception as e:
+            login = '-'
 
         # save USER data in db
         user = Users(
             id=str(message.chat.id),
-            login=message.chat.username,
+            login=login,
             fullname=data['fullname'],
             phone=data['phone'],
             experience=data['experience'],
