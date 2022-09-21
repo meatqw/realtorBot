@@ -7,6 +7,7 @@ from aiogram.dispatcher import FSMContext
 import config
 from db import db, Users, Objects
 from aiogram.types import ParseMode
+from aiogram.utils.markdown import link
 import logging
 import aiogram.utils.markdown as md
 import datetime
@@ -46,13 +47,14 @@ class objectsForm(StatesGroup):
     city = State()
     area = State()
     address = State()
+    property_type = State()
     # street = State()
     rooms = State()
     stage = State()
     description = State()
     price = State()
     quadrature = State()
-    property_type = State()
+    
     ownership_type = State()
     phone = State()
 
@@ -354,6 +356,17 @@ async def process_address_invalid(message: types.Message):
     return await message.reply(config.OBJECT_TEXT['objects']['exc_address'])
 
 
+property_type_keyboard = types.InlineKeyboardMarkup(
+    resize_keyboard=True, selective=True)
+property_type_btn_1 = types.InlineKeyboardButton('Вторичка', callback_data='property_type_btn_1')
+property_type_btn_2 = types.InlineKeyboardButton('Новострой', callback_data='property_type_btn_2')
+property_type_btn_3 = types.InlineKeyboardButton('Дом', callback_data='property_type_btn_3')
+property_type_btn_4 = types.InlineKeyboardButton('Земля', callback_data='property_type_btn_4')
+property_type_keyboard.add(property_type_btn_1, property_type_btn_2)
+property_type_keyboard.add(property_type_btn_3, property_type_btn_4)
+
+
+
 @dp.message_handler(lambda message: len(message.text) > 0, state=objectsForm.address)
 async def process_objects_address(message: types.Message, state: FSMContext):
     """OBJECTS ADDRESS STATE"""
@@ -391,7 +404,38 @@ async def process_objects_address(message: types.Message, state: FSMContext):
 
     # start objects street state
     await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_rooms'])
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_property_type'], reply_markup=property_type_keyboard)
+
+
+
+@dp.callback_query_handler(Text(startswith="property_type_btn_"), state=objectsForm.property_type)
+async def callbacks_property_type(call: types.CallbackQuery, state: FSMContext):
+    """CALLBACK PROPERTY TYPE"""
+    action = call.data.split('_')[-1]
+
+    if action == "1":
+        p_type = 'Вторичка'
+    elif action == "2":
+        p_type = 'Новострой'
+    elif action == "3":
+        p_type = 'Дом'
+    elif action == "4":
+        p_type = 'Земля'
+
+    async with state.proxy() as data:
+        data['property_type'] = p_type
+
+    # start objects ownership type type state
+    await objectsForm.next()
+
+    await call.answer()
+
+    await bot.send_message(call.message.chat.id, p_type)
+    
+    if action != '4':
+        await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_rooms'])
+    else:
+        await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_no_rooms'])
 
 
 @dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.rooms)
@@ -403,12 +447,21 @@ async def process_rooms_invalid(message: types.Message):
 async def process_objects_rooms(message: types.Message, state: FSMContext):
     """OBJECTS ROOMS STATE"""
 
+    
     async with state.proxy() as data:
-        data['rooms'] = message.text
+        type_ = data['property_type']
+        if type_ != 'Земля':
+            data['rooms'] = message.text
+        else:
+            data['rooms'] = 0
 
     # start objects stage state
     await objectsForm.next()
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_stage'])
+    
+    if type_ != 'Земля':
+        await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_stage'])
+    else:
+        await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_no_stage'])
 
 
 @dp.message_handler(lambda message: not message.text.isdigit(), state=objectsForm.stage)
@@ -421,7 +474,10 @@ async def process_objects_stage(message: types.Message, state: FSMContext):
     """OBJECTS STAGE STATE"""
 
     async with state.proxy() as data:
-        data['stage'] = message.text
+        if data['property_type'] != 'Земля':
+            data['stage'] = message.text
+        else:
+            data['stage'] = 0
 
     # start objects description state
     await objectsForm.next()
@@ -454,17 +510,9 @@ async def process_objects_price(message: types.Message, state: FSMContext):
 
     # start objects quadrature state
     await objectsForm.next()
+    
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_quadrature'])
 
-
-property_type_keyboard = types.InlineKeyboardMarkup(
-    resize_keyboard=True, selective=True)
-property_type_btn_1 = types.InlineKeyboardButton('Вторичка', callback_data='property_type_btn_1')
-property_type_btn_2 = types.InlineKeyboardButton('Новострой', callback_data='property_type_btn_2')
-property_type_btn_3 = types.InlineKeyboardButton('Дом', callback_data='property_type_btn_3')
-property_type_btn_4 = types.InlineKeyboardButton('Земля', callback_data='property_type_btn_4')
-property_type_keyboard.add(
-    property_type_btn_1, property_type_btn_2, property_type_btn_3, property_type_btn_4)
 
 ownership_type_keyboard = types.InlineKeyboardMarkup(
     resize_keyboard=True, selective=True)
@@ -490,33 +538,8 @@ async def process_objects_quadrature(message: types.Message, state: FSMContext):
     # start objects property type state
     await objectsForm.next()
 
-    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_property_type'], reply_markup=property_type_keyboard)
+    await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_ownership_type'], reply_markup=ownership_type_keyboard)
 
-
-@dp.callback_query_handler(Text(startswith="property_type_btn_"), state=objectsForm.property_type)
-async def callbacks_property_type(call: types.CallbackQuery, state: FSMContext):
-    """CALLBACK PROPERTY TYPE"""
-    action = call.data.split('_')[-1]
-
-    if action == "1":
-        p_type = 'Вторичка'
-    elif action == "2":
-        p_type = 'Новострой'
-    elif action == "3":
-        p_type = 'Дом'
-    elif action == "4":
-        p_type = 'Земля'
-
-    async with state.proxy() as data:
-        data['property_type'] = p_type
-
-    # start objects ownership type type state
-    await objectsForm.next()
-
-    await call.answer()
-
-    await bot.send_message(call.message.chat.id, p_type)
-    await bot.send_message(call.message.chat.id, config.OBJECT_TEXT['objects']['enter_ownership_type'], reply_markup=ownership_type_keyboard)
 
 
 @dp.callback_query_handler(Text(startswith="ownership_type_btn_"), state=objectsForm.ownership_type)
@@ -576,12 +599,12 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
                 md.text('Кол-во комнат: ', md.bold(data['rooms'])),
                 md.text('Этаж: ', md.bold(data['stage'])),
                 md.text('Описание: ', md.bold(data['description'])),
-                md.text('Цена: ', md.bold(data['price'] + ' ₽')),
-                md.text('Площадь: ', md.bold(data['quadrature'] + ' м²')),
+                md.text('Цена: ', price_processing(data['price']) + ' ₽'),
+                md.text('Площадь: ', data['quadrature'] + ' м²'),
                 md.text('Тип недвижимости: ', md.bold(data['property_type'])),
                 md.text('Тип собственности: ', md.bold(
                     data['ownership_type'])),
-                md.text('Телефон: ', f"`{data['phone']}`"),
+                md.text('Телефон: ', (f"[{object.phone}](tel:{object.phone})")),
                 sep='\n',)
 
         await bot.send_message(message.chat.id, md.text(config.OBJECT_TEXT['objects']['finish_add']))
@@ -1240,6 +1263,14 @@ async def callback_filter(call: types.CallbackQuery):
 #         msg = await bot.send_message(message.chat.id, config.OBJECT_TEXT['feed']['no_objects'], reply_markup=objects_keyboard)
 ##############################################################################
 
+def price_processing(price):
+    
+    arr = ([price[::-1][i:i + 3] for i in range(0, len(price[::-1]), 3)])
+    arr = list(reversed(arr))
+    price = '.'.join(arr)
+    return price
+    
+
 def render_all_objects(my_objects):
     """RENDER ALL MY OBJECTS"""
     
@@ -1268,13 +1299,12 @@ def render_all_objects(my_objects):
             md.text('Кол-во комнат: ', md.bold(object.rooms)),
             md.text('Этаж: ', md.bold(object.stage)),
             md.text('Описание: ', md.bold(object.description)),
-            md.text('Цена: ', md.bold(str(object.price) + ' ₽')),
-            md.text('Площадь: ', md.bold(
-                    str(object.quadrature) + ' м²')),
+            md.text('Цена: ', price_processing(str(object.price)) + ' ₽'),
+            md.text('Площадь: ', str(object.quadrature) + ' м²'),
             md.text('Тип недвижимости: ', md.bold(object.property_type)),
             md.text('Тип собственности: ', md.bold(object.ownership_type)),
-            md.text('Телефон: ', f"`{object.phone}`"),
-            md.text('Дейтвительно до: ', md.bold((object.date_end.strftime("%m/%d/%Y, %H:%M:%S")))),
+            md.text('Телефон: ', (f"[{object.phone}](tel:{object.phone})")),
+            md.text('Дейтвительно до: ', (object.date_end.strftime("%d.%m.%Y, %H:%M:%S"))),
 
             sep='\n',
         )
@@ -1347,27 +1377,39 @@ async def callback_delete_my_object(call: types.CallbackQuery):
         await OBJECTS[call.message.chat.id]['current_object'].delete()
     except Exception as e:
         pass
-
-    # del rec DB
-    Objects.query.filter_by(id=int(action)).delete()
-    db.session.commit()
+    
+    try:
+        # del rec DB
+        Objects.query.filter_by(id=int(action)).delete()
+        db.session.commit()
+    except Exception as e:
+        print(e)
 
     # rerender my object form
     try:
         for i in OBJECTS[call.message.chat.id]['msg']:
             await i.delete()
-        await OBJECTS[call.message.chat.id]['object_list'].delete()
+        del OBJECTS[call.message.chat.id]['msg']
+    except Exception as e:
+        pass
+
+    try:
+        for i in OBJECTS[call.message.chat.id]['object_list']:
+            await i.delete()
+        del OBJECTS[call.message.chat.id]['object_list']
     except Exception as e:
         pass
     
     object = Objects.query.filter_by(user=call.message.chat.id).all()
     objects = render_all_objects(object)
 
+    msgs = []
     for i in objects:
         msg = await bot.send_message(call.message.chat.id, i[0], reply_markup=i[1], parse_mode=ParseMode.MARKDOWN)
+        msgs.append(msg)
 
     # save current object list
-    OBJECTS[call.message.chat.id] = {'object_list': msg}
+    OBJECTS[call.message.chat.id] = {'object_list': msgs}
 
 
 @dp.callback_query_handler(Text(startswith="extend_object_"))

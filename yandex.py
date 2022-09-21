@@ -81,7 +81,7 @@ def get_data(source, method):
             try:
                 street = result_address['Locality']['Thoroughfare']['ThoroughfareName']
             except Exception as e:
-                steet = None
+                street = None
 
         try:
             house = result_address['SubAdministrativeArea']['Locality']['Thoroughfare']['Premise']['PremiseNumber']
