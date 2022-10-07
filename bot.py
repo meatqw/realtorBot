@@ -244,12 +244,12 @@ main_keyboard.row(
 main_keyboard.row(config.OBJECT_TEXT['main']['my_objects_btn'],
                   config.OBJECT_TEXT['main']['notification_btn'])
 
-def get_user(id):
+def get_user_(id):
     with app.app_context():
-        return Users.query.filter_by(id).first()
+        return Users.query.filter_by(id=id).first()
 
 
-@dp.message_handler(lambda message: get_user(message.chat.id)!= None
+@dp.message_handler(lambda message: get_user_(message.chat.id) != None
                     and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']] and 
                     message.text not in [config.OBJECT_TEXT['notification'][i] for i in config.OBJECT_TEXT['notification']])
 async def process_auth(message: types.Message):
@@ -258,7 +258,7 @@ async def process_auth(message: types.Message):
     await message.answer(config.OBJECT_TEXT['user']['login'], reply_markup=main_keyboard)
 
 
-@dp.message_handler(lambda message: get_user(message.chat.id) == None
+@dp.message_handler(lambda message: get_user_(message.chat.id) == None
                     and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']] and 
                     message.text not in [config.OBJECT_TEXT['notification'][i] for i in config.OBJECT_TEXT['notification']])
 async def process_not_auth(message: types.Message):
