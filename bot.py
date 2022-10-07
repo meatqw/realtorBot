@@ -227,10 +227,10 @@ async def process_city(message: types.Message, state: FSMContext):
             ),
             parse_mode=ParseMode.MARKDOWN,
         )
-        with app.app_context():
-            access_key = AccessKeys.query.filter_by(key=data['key']).first()
-            access_key.user = str(message.chat.id)
-            db.session.commit()
+        # with app.app_context():
+        #     access_key = AccessKeys.query.filter_by(key=data['key']).first()
+        #     access_key.user = str(message.chat.id)
+        #     db.session.commit()
 
     # finish state
     await state.finish()
