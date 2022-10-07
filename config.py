@@ -71,8 +71,8 @@ OBJECT_TEXT = {
         'loading': '💤 Загрузка...'
     },
     'main': {
-        'sale_btn': '🏛 Продажа',
-        'feed_btn': '🏘 Лента',
+        'sale_btn': '🏛 Разместить',
+        'feed_btn': '🏘 Поиск объекта',
         'my_objects_btn': '🏗 Мои объекты',
         'notification_btn': '🛎 Уведомления',
         'cancel_btn': '↩️ Отмена',

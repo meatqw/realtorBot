@@ -5,7 +5,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
 import config
-from db import db, Users, Objects
+from db import db, Users, Objects, AccessKeys
 from aiogram.types import ParseMode
 from aiogram.utils.markdown import link
 import logging
@@ -130,13 +130,13 @@ async def process_job(message: types.Message, state: FSMContext):
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['user']['enter_key'])
 
 
-@dp.message_handler(lambda message: message.text not in KEYS, state=userForm.key)
+@dp.message_handler(lambda message: message.text not in [i.key for i in AccessKeys.query.all()], state=userForm.key)
 async def process_check_key(message: types.Message):
     """CHECK KEY"""
     return await message.reply(config.OBJECT_TEXT['user']['exc_key'])
 
 
-@dp.message_handler(lambda message: message.text in KEYS, state=userForm.key)
+@dp.message_handler(lambda message: message.text in [i.key for i in AccessKeys.query.all()], state=userForm.key)
 async def process_key(message: types.Message, state: FSMContext):
     """KEY STATE"""
 
@@ -221,6 +221,10 @@ async def process_city(message: types.Message, state: FSMContext):
             ),
             parse_mode=ParseMode.MARKDOWN,
         )
+        
+        access_key = AccessKeys.query.filter_by(key=data['key']).first()
+        access_key.user = str(message.chat.id)
+        db.session.commit()
 
     # finish state
     await state.finish()
