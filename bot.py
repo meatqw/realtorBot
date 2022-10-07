@@ -624,7 +624,7 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
                 md.text('Тип недвижимости: ', md.bold(data['property_type'])),
                 md.text('Тип собственности: ', md.bold(
                     data['ownership_type'])),
-                md.text('Телефон: ', (f"[{object.phone}](tel:{object.phone})")),
+                md.text('Телефон: ', (f"[{data['phone']}](tel:{data['phone']})")),
                 sep='\n',)
 
         await bot.send_message(message.chat.id, md.text(config.OBJECT_TEXT['objects']['finish_add']))
