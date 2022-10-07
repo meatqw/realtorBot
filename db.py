@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
 import os
 import config
 
@@ -54,6 +55,11 @@ class AccessKeys(db.Model):
     key = db.Column(db.String(400), nullable=True)
     user = db.Column(db.String(200), db.ForeignKey('users.id'), nullable=True)
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
+    
+class UserAdmin(db.Model, UserMixin):
+    id = db.Column(db.Integer(), primary_key=True)
+    login = db.Column(db.String(128), nullable=False, unique=True)
+    password = db.Column(db.String(128), nullable=False)
 
 with app.app_context():
     db.create_all()
