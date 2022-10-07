@@ -5,7 +5,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
 import config
-from db import db, Users, Objects, AccessKeys
+from db import db, Users, Objects, AccessKeys, app
 from aiogram.types import ParseMode
 from aiogram.utils.markdown import link
 import logging
@@ -20,6 +20,10 @@ USER = {}
 UPDATE = {}
 SWITCH = {}
 NOTIFICATION = {}
+
+def get_keys():
+    with app.app_context():
+        return [i.key for i in AccessKeys.query.all()]
 
 logging.basicConfig(level=logging.INFO)
 
@@ -130,13 +134,13 @@ async def process_job(message: types.Message, state: FSMContext):
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['user']['enter_key'])
 
 
-@dp.message_handler(lambda message: message.text not in [i.key for i in AccessKeys.query.all()], state=userForm.key)
+@dp.message_handler(lambda message: message.text not in get_keys(), state=userForm.key)
 async def process_check_key(message: types.Message):
     """CHECK KEY"""
     return await message.reply(config.OBJECT_TEXT['user']['exc_key'])
 
 
-@dp.message_handler(lambda message: message.text in [i.key for i in AccessKeys.query.all()], state=userForm.key)
+@dp.message_handler(lambda message: message.text in get_keys(), state=userForm.key)
 async def process_key(message: types.Message, state: FSMContext):
     """KEY STATE"""
 
@@ -185,21 +189,22 @@ async def process_city(message: types.Message, state: FSMContext):
         except Exception as e:
             login = '-'
 
+        with app.app_context():
         # save USER data in db
-        user = Users(
-            id=str(message.chat.id),
-            login=login,
-            fullname=data['fullname'],
-            phone=data['phone'],
-            experience=data['experience'],
-            job=data['job'],
-            key=data['key'],
-            region=data['region'],
-            city=data['city'],
-            notification={'status': False, 'filter': None})
+            user = Users(
+                id=str(message.chat.id),
+                login=login,
+                fullname=data['fullname'],
+                phone=data['phone'],
+                experience=data['experience'],
+                job=data['job'],
+                key=data['key'],
+                region=data['region'],
+                city=data['city'],
+                notification={'status': False, 'filter': None})
 
-        db.session.add(user)
-        db.session.commit()
+            db.session.add(user)
+            db.session.commit()
 
         await msg.delete()
 
@@ -221,10 +226,10 @@ async def process_city(message: types.Message, state: FSMContext):
             ),
             parse_mode=ParseMode.MARKDOWN,
         )
-        
-        access_key = AccessKeys.query.filter_by(key=data['key']).first()
-        access_key.user = str(message.chat.id)
-        db.session.commit()
+        with app.app_context():
+            access_key = AccessKeys.query.filter_by(key=data['key']).first()
+            access_key.user = str(message.chat.id)
+            db.session.commit()
 
     # finish state
     await state.finish()
@@ -579,25 +584,26 @@ async def process_objects_phone(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['phone'] = message.text
 
-        # save Objects data in db
-        object = Objects(
-            user=str(message.chat.id),
-            region=data['region'],
-            city=data['city'],
-            area=data['area'],
-            address=data['address'],
-            street=data['street'],
-            rooms=data['rooms'],
-            stage=data['stage'],
-            description=data['description'],
-            price=data['price'],
-            quadrature=data['quadrature'],
-            property_type=data['property_type'],
-            ownership_type=data['ownership_type'],
-            phone=data['phone'])
+        with app.app_context():
+            # save Objects data in db
+            object = Objects(
+                user=str(message.chat.id),
+                region=data['region'],
+                city=data['city'],
+                area=data['area'],
+                address=data['address'],
+                street=data['street'],
+                rooms=data['rooms'],
+                stage=data['stage'],
+                description=data['description'],
+                price=data['price'],
+                quadrature=data['quadrature'],
+                property_type=data['property_type'],
+                ownership_type=data['ownership_type'],
+                phone=data['phone'])
 
-        db.session.add(object)
-        db.session.commit()
+            db.session.add(object)
+            db.session.commit()
         
         object_info = md.text(
                 md.text('Регион: ', md.bold(data['region'])),
@@ -727,7 +733,8 @@ def render_filter_button(id):
         resize_keyboard=True, selective=True, row_width=1)
 
     if id in FILTER:
-        user = Users.query.filter_by(id=id).first()
+        with app.app_context():
+            user = Users.query.filter_by(id=id).first()
 
         if 'region' in FILTER[id]:
             current_region = FILTER[id]['region']
@@ -763,19 +770,22 @@ def render_filter_button(id):
         if 'count' in FILTER[id]:
             current_count = len(get_result_objects(id))
         else:
-            current_count = len(
-                Objects.query.filter_by(region=current_region).all())
+            with app.app_context():
+                current_count = len(
+                    Objects.query.filter_by(region=current_region).all())
     else:
 
         # default user city and region
 
-        user = Users.query.filter_by(id=id).first()
+        with app.app_context():
+            user = Users.query.filter_by(id=id).first()
         current_region = user.region
         current_city = 'Не выбрано'
         current_area = 'Не выбрано'
         current_rooms = 'Не выбрано'
         current_price = 'Не выбрано'
-        current_count = len(Objects.query.filter_by(city=current_city).all())
+        with app.app_context():
+            current_count = len(Objects.query.filter_by(city=current_city).all())
 
         FILTER[id] = {'city': current_city, 'area': current_area,
                       'rooms': current_rooms, 'price': current_price,
@@ -1059,7 +1069,8 @@ async def callback_filter(call: types.CallbackQuery):
             
         elif action == 'no':
             # get objects without filter
-            object = Objects.query.all()
+            with app.app_context():
+                object = Objects.query.all()
             
             for i in render_all_objects(object):
                 await bot.send_message(call.message.chat.id, i[0], parse_mode=ParseMode.MARKDOWN)
@@ -1148,7 +1159,8 @@ async def callback_filter(call: types.CallbackQuery):
             
     # notification filter OK
     elif func_action == 'notification':
-        user = Users.query.filter_by(id=call.message.chat.id).first()
+        with app.app_context():
+            user = Users.query.filter_by(id=call.message.chat.id).first()
         
         try:
             await FILTER[call.message.chat.id]['filter_menu'].delete()
@@ -1327,7 +1339,8 @@ def render_all_objects(my_objects):
 async def function_my_objects(message: types.Message):
     """FUNCTION MY OBJECTS"""
     id = message.chat.id
-    object = Objects.query.filter_by(user=id).all()
+    with app.app_context():
+        object = Objects.query.filter_by(user=id).all()
     
     OBJECTS[id] = {'msg': []}
     for i in render_all_objects(object):
@@ -1432,9 +1445,10 @@ async def callback_extend_my_object(call: types.CallbackQuery):
         pass
 
     # update rec DB
-    object = Objects.query.filter_by(id=int(action)).first()
-    object.date_end += datetime.timedelta(days=30)
-    db.session.commit()
+    with app.app_context():
+        object = Objects.query.filter_by(id=int(action)).first()
+        object.date_end += datetime.timedelta(days=30)
+        db.session.commit()
 
     try:
         del OBJECTS[call.message.chat.id]['current_object']
@@ -1512,8 +1526,9 @@ async def process_update(message: types.Message, state: FSMContext):
         action = UPDATE[message.chat.id]['update']['action']
         id = UPDATE[message.chat.id]['update']['id']
         # SQL
-        db.engine.execute(f"UPDATE objects SET {action}={message.text} WHERE id={id};")
-        db.session.commit()
+        with app.app_context():
+            db.engine.execute(f"UPDATE objects SET {action}={message.text} WHERE id={id};")
+            db.session.commit()
 
 
     # finish state
@@ -1558,27 +1573,30 @@ async def function_notifications(message: types.Message):
 async def notification_yes_handler(message: types.Message,  state: FSMContext):
     """NOTIFICATON YES HANDLER"""
 
-    user_settings = Users.query.filter_by(id=message.chat.id).first()
-    user_settings.notification = {'status': True, 'filter': None}
-    db.session.commit()
+    with app.app_context():
+        user_settings = Users.query.filter_by(id=message.chat.id).first()
+        user_settings.notification = {'status': True, 'filter': None}
+        db.session.commit()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['notification']['yes'], reply_markup=main_keyboard)
 
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['notification']['no'], ignore_case=True), state='*')
 async def notification_no_handler(message: types.Message,  state: FSMContext):
     """NOTIFICATON NO HANDLER"""
 
-    user_settings = Users.query.filter_by(id=message.chat.id).first()
-    user_settings.notification = {'status': False, 'filter': None}
-    db.session.commit()
+    with app.app_context():
+        user_settings = Users.query.filter_by(id=message.chat.id).first()
+        user_settings.notification = {'status': False, 'filter': None}
+        db.session.commit()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['notification']['no'], reply_markup=main_keyboard)
 
 @dp.message_handler(Text(equals=config.OBJECT_TEXT['notification']['all'], ignore_case=True), state='*')
 async def notification_all_handler(message: types.Message,  state: FSMContext):
     """NOTIFICATON ALL HANDLER"""
 
-    user_settings = Users.query.filter_by(id=message.chat.id).first()
-    user_settings.notification = {'status': True, 'filter': None}
-    db.session.commit()
+    with app.app_context():
+        user_settings = Users.query.filter_by(id=message.chat.id).first()
+        user_settings.notification = {'status': True, 'filter': None}
+        db.session.commit()
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['notification']['all'], reply_markup=main_keyboard)
 
 
