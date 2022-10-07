@@ -22,8 +22,9 @@ SWITCH = {}
 NOTIFICATION = {}
 
 def get_keys():
-    with app.app_context():
-        return [i.key for i in AccessKeys.query.all()]
+    # with app.app_context():
+    #     return [i.key for i in AccessKeys.query.all()]
+    return ['key']
 
 logging.basicConfig(level=logging.INFO)
 
@@ -243,8 +244,12 @@ main_keyboard.row(
 main_keyboard.row(config.OBJECT_TEXT['main']['my_objects_btn'],
                   config.OBJECT_TEXT['main']['notification_btn'])
 
+def get_user(id):
+    with app.app_context():
+        return Users.query.filter_by(id).first()
 
-@dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() != None
+
+@dp.message_handler(lambda message: get_user(message.chat.id)!= None
                     and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']] and 
                     message.text not in [config.OBJECT_TEXT['notification'][i] for i in config.OBJECT_TEXT['notification']])
 async def process_auth(message: types.Message):
@@ -253,7 +258,7 @@ async def process_auth(message: types.Message):
     await message.answer(config.OBJECT_TEXT['user']['login'], reply_markup=main_keyboard)
 
 
-@dp.message_handler(lambda message: Users.query.filter_by(id=message.chat.id).first() == None
+@dp.message_handler(lambda message: get_user(message.chat.id) == None
                     and message.text not in [config.OBJECT_TEXT['main'][i] for i in config.OBJECT_TEXT['main']] and 
                     message.text not in [config.OBJECT_TEXT['notification'][i] for i in config.OBJECT_TEXT['notification']])
 async def process_not_auth(message: types.Message):
@@ -672,7 +677,8 @@ def maling_filter(notification, obj):
     
 async def notification_maling(id, object_info, object):
     """MALING NOTIFICATION"""
-    users = Users.query.all()
+    with app.app_context():
+        users = Users.query.all()
     
     for user in users:
         notification_user = user.notification
@@ -829,7 +835,8 @@ async def render_item(id, item):
         resize_keyboard=True, selective=True, row_width=1)
 
     # get all objects
-    objects = Objects.query.all()
+    with app.app_context():
+        objects = Objects.query.all()
     all_city = set([i.city for i in objects if i.city != None])
     all_areas_filter_by_city = set(
         [i.area for i in objects if i.city == FILTER[id]['city']])
@@ -952,42 +959,50 @@ def get_result_objects(id):
 
     # true true true
     if filter_area != 'Не выбрано' and filter_rooms != 'Не выбрано' and filter_city != 'Не выбрано':
-        objects = Objects.query.filter_by(
-            region=filter_region, area=filter_area, rooms=filter_rooms, city=filter_city).all()
+        with app.app_context():
+            objects = Objects.query.filter_by(
+                region=filter_region, area=filter_area, rooms=filter_rooms, city=filter_city).all()
 
     # true false false
     elif filter_area != 'Не выбрано' and filter_rooms == 'Не выбрано' and filter_city == 'Не выбрано':
-        objects = Objects.query.filter_by(
-            region=filter_region, area=filter_area).all()
+        with app.app_context():
+            objects = Objects.query.filter_by(
+                region=filter_region, area=filter_area).all()
 
     # false true false
     elif filter_area == 'Не выбрано' and filter_rooms != 'Не выбрано' and filter_city == 'Не выбрано':
-        objects = Objects.query.filter_by(
-            region=filter_region, rooms=filter_rooms).all()
+        with app.app_context():
+            objects = Objects.query.filter_by(
+                region=filter_region, rooms=filter_rooms).all()
 
     # false false true
     elif filter_area == 'Не выбрано' and filter_rooms == 'Не выбрано' and filter_city != 'Не выбрано':
-        objects = Objects.query.filter_by(
-            region=filter_region, city=filter_city).all()
+        with app.app_context():
+            objects = Objects.query.filter_by(
+                region=filter_region, city=filter_city).all()
 
     # true true false
     elif filter_area != 'Не выбрано' and filter_rooms != 'Не выбрано' and filter_city == 'Не выбрано':
-        objects = Objects.query.filter_by(
-            region=filter_region, area=filter_area, rooms=filter_rooms).all()
+        with app.app_context():
+            objects = Objects.query.filter_by(
+                region=filter_region, area=filter_area, rooms=filter_rooms).all()
 
     # true false true
     elif filter_area != 'Не выбрано' and filter_rooms == 'Не выбрано' and filter_city != 'Не выбрано':
-        objects = Objects.query.filter_by(
-            region=filter_region, area=filter_area, city=filter_city).all()
+        with app.app_context():
+            objects = Objects.query.filter_by(
+                region=filter_region, area=filter_area, city=filter_city).all()
 
     # false true true
     elif filter_area == 'Не выбрано' and filter_rooms != 'Не выбрано' and filter_city != 'Не выбрано':
-        objects = Objects.query.filter_by(
-            region=filter_region, rooms=filter_rooms, city=filter_city).all()
+        with app.app_context():
+            objects = Objects.query.filter_by(
+                region=filter_region, rooms=filter_rooms, city=filter_city).all()
 
     # false false false
     elif filter_area == 'Не выбрано' and filter_rooms == 'Не выбрано' and filter_city == 'Не выбрано':
-        objects = Objects.query.filter_by(region=filter_region).all()
+        with app.app_context():
+            objects = Objects.query.filter_by(region=filter_region).all()
 
     if filter_price != 'Не выбрано':
         for i in objects:
@@ -1205,6 +1220,7 @@ async def callback_filter(call: types.CallbackQuery):
         except Exception as e:
             print(e)
         
+        
         print(FILTER[call.message.chat.id])
         user.notification = {'status': True, 'filter': FILTER[call.message.chat.id]}
         db.session.commit()
@@ -1402,8 +1418,9 @@ async def callback_delete_my_object(call: types.CallbackQuery):
     
     try:
         # del rec DB
-        Objects.query.filter_by(id=int(action)).delete()
-        db.session.commit()
+        with app.app_context():
+            Objects.query.filter_by(id=int(action)).delete()
+            db.session.commit()
     except Exception as e:
         print(e)
 
@@ -1422,8 +1439,9 @@ async def callback_delete_my_object(call: types.CallbackQuery):
     except Exception as e:
         pass
     
-    object = Objects.query.filter_by(user=call.message.chat.id).all()
-    objects = render_all_objects(object)
+    with app.app_context():
+        object = Objects.query.filter_by(user=call.message.chat.id).all()
+        objects = render_all_objects(object)
 
     msgs = []
     for i in objects:
@@ -1535,7 +1553,8 @@ async def process_update(message: types.Message, state: FSMContext):
     await state.finish()
     
     # reload object info
-    object = Objects.query.filter_by(id=UPDATE[message.chat.id]['update']['id']).all()
+    with app.app_context():
+        object = Objects.query.filter_by(id=UPDATE[message.chat.id]['update']['id']).all()
     text, object_control_keyboard  = render_all_objects(object)[0]
     
     message_object_id = await bot.send_message(
@@ -1560,7 +1579,8 @@ async def function_notifications(message: types.Message):
     keyboard.add(config.OBJECT_TEXT['main']['back_btn'])
     
     # printing current notification status
-    user_settings = Users.query.filter_by(id=message.chat.id).first()
+    with app.app_context():
+        user_settings = Users.query.filter_by(id=message.chat.id).first()
     status = user_settings.notification['status']
     
     if status == False:
