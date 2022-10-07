@@ -60,12 +60,6 @@ class UserAdmin(db.Model, UserMixin):
     id = db.Column(db.Integer(), primary_key=True)
     login = db.Column(db.String(128), nullable=False, unique=True)
     password = db.Column(db.String(128), nullable=False)
-
-with app.app_context():
-    db.create_all()
-    app.config['SESSION_TYPE'] = 'filesystem'
-    app.config['JSON_AS_ASCII'] = False
-    app.run(debug=True, port=5005)
     
     
     # Session(app)
