@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Flask
+from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
 import os
 import config
@@ -55,8 +55,7 @@ class AccessKeys(db.Model):
     user = db.Column(db.String(200), db.ForeignKey('users.id'), nullable=True)
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now())
 
-
-if __name__ == '__main__':
+with app.app_context():
     db.create_all()
     app.config['SESSION_TYPE'] = 'filesystem'
     app.config['JSON_AS_ASCII'] = False
