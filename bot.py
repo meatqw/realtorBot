@@ -878,9 +878,7 @@ async def callback_filter(call: types.CallbackQuery):
 
 def price_processing(price):
     
-    arr = ([price[::-1][i:i + 3] for i in range(0, len(price[::-1]), 3)])
-    arr = list(reversed(arr))
-    price = '.'.join(arr)
+    price = '{0:,}'.format(int(price)).replace(',', ' ')
     return price
     
 
@@ -1212,4 +1210,6 @@ async def notification_filter_handler(message: types.Message,  state: FSMContext
     FILTER[message.chat.id]['filter_menu'] = msg
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=True
+
+

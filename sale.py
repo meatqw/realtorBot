@@ -290,7 +290,6 @@ async def process_number_of_storeys(message: types.Message, state: FSMContext):
     # start objects phone state
     await objectsForm.next()
     
-    await bot.send_message(message.chat.id, message.text)
     await bot.send_message(message.chat.id, config.OBJECT_TEXT['objects']['enter_phone'])
 
 @dp.message_handler(state=objectsForm.phone)
