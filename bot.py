@@ -878,7 +878,7 @@ async def callback_filter(call: types.CallbackQuery):
 
 def price_processing(price):
     
-    price = '{0:,}'.format(price).replace('.', ' ')
+    price = '{0:,}'.format(int(price)).replace('.', ' ')
     return price
     
 
