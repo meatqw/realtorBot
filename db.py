@@ -64,6 +64,6 @@ class UserAdmin(db.Model, UserMixin):
 with app.app_context():
     app.config['SESSION_TYPE'] = 'filesystem'
     app.config['JSON_AS_ASCII'] = False
-    db.create_all()
+    # db.create_all()
     
     # Session(app)
